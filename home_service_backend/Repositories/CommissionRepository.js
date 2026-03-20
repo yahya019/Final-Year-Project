@@ -22,9 +22,18 @@ class CommissionRepository {
             if (!booking)
                 return { Status: "Fail", Result: "Booking not found" };
 
+            const existing = await commissionCollection.findOne({
+                bookingId: new ObjectId(model.bookingId)
+            });
+
+            if (existing)
+                return { Status: "Conflict", Result: "Commission already exists for this booking" };
+           
+
             const totalAmount = Number(model.totalAmount);
             const commissionPercentage = Number(model.commissionPercentage);
 
+        
             if (totalAmount <= 0)
                 return { Status: "Fail", Result: "Invalid total amount" };
 
@@ -75,12 +84,12 @@ class CommissionRepository {
 
     };
 
-
-    /* ================= COMMISSION LIST ================= */
-
-   commissionList = async () => {
+    getByServiceman = async (servicemanId) => {
     try {
         const collection = await getCollection("Commission");
+
+        if (!ObjectId.isValid(servicemanId))
+            return { Status: "Fail", Result: "Invalid Serviceman Id" };
 
         const commissions = await collection.aggregate([
             {
@@ -93,14 +102,10 @@ class CommissionRepository {
             },
             { $unwind: { path: "$booking", preserveNullAndEmptyArrays: true } },
             {
-                $lookup: {
-                    from: "Serviceman",
-                    localField: "booking.servicemanId",
-                    foreignField: "_id",
-                    as: "serviceman"
+                $match: {
+                    "booking.servicemanId": new ObjectId(servicemanId)
                 }
             },
-            { $unwind: { path: "$serviceman", preserveNullAndEmptyArrays: true } },
             {
                 $lookup: {
                     from: "Service",
@@ -119,6 +124,51 @@ class CommissionRepository {
         return { Status: "Fail", Result: error.message };
     }
 };
+
+
+    /* ================= COMMISSION LIST ================= */
+
+    commissionList = async () => {
+        try {
+            const collection = await getCollection("Commission");
+
+            const commissions = await collection.aggregate([
+                {
+                    $lookup: {
+                        from: "BookingMaster",
+                        localField: "bookingId",
+                        foreignField: "_id",
+                        as: "booking"
+                    }
+                },
+                { $unwind: { path: "$booking", preserveNullAndEmptyArrays: true } },
+                {
+                    $lookup: {
+                        from: "Serviceman",
+                        localField: "booking.servicemanId",
+                        foreignField: "_id",
+                        as: "serviceman"
+                    }
+                },
+                { $unwind: { path: "$serviceman", preserveNullAndEmptyArrays: true } },
+                {
+                    $lookup: {
+                        from: "Service",
+                        localField: "booking.serviceId",
+                        foreignField: "_id",
+                        as: "service"
+                    }
+                },
+                { $unwind: { path: "$service", preserveNullAndEmptyArrays: true } },
+                { $sort: { createdAt: -1 } }
+            ]).toArray();
+
+            return { Status: "OK", Result: commissions };
+
+        } catch (error) {
+            return { Status: "Fail", Result: error.message };
+        }
+    };
 
 
     /* ================= COMMISSION BY BOOKING ================= */

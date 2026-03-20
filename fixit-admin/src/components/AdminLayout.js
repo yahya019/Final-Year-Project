@@ -1,19 +1,19 @@
-import React, { useState } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { adminChangePassword } from '../utils/api';
+import { adminChangePassword, getServicemen, getServicemanServices, getAllBookings, getComplaints, getCommissions } from '../utils/api';
 
 const NAV_ITEMS = [
   { path: 'dashboard',  icon: '⚡', label: 'Dashboard'  },
-  { path: 'bookings',   icon: '📋', label: 'Bookings'   },
-  { path: 'workers',    icon: '🔧', label: 'Workers'    },
-  { path: 'approvals',  icon: '✅', label: 'Approvals'  },
-  { path: 'settlement', icon: '💸', label: 'Settlement' },
-  { path: 'reviews',    icon: '⭐', label: 'Reviews'    },
+  { path: 'bookings',   icon: '📋', label: 'Bookings',   badgeKey: 'pendingBookings'   },
+  { path: 'approvals',  icon: '✅', label: 'Approvals',  badgeKey: 'pendingApprovals'  },
+  { path: 'workers',    icon: '🔧', label: 'Workers',    badgeKey: 'pendingWorkers'    },
   { path: 'customers',  icon: '👥', label: 'Customers'  },
-  { path: 'admins',     icon: '🛡️', label: 'Admins'     },
+  { path: 'reviews',    icon: '⭐', label: 'Reviews',    badgeKey: 'openComplaints'    },
+  { path: 'settlement', icon: '💸', label: 'Settlement', badgeKey: 'pendingSettlements'},
   { path: 'categories', icon: '🗂️', label: 'Categories' },
-  { path: 'services',   icon: '🔧', label: 'Services'   },
+  { path: 'services',   icon: '🛠️', label: 'Services'   },
+  { path: 'admins',     icon: '🛡️', label: 'Admins'     },
 ];
 
 // ── Change Password Modal ──────────────────────────────────────────────────────
@@ -186,9 +186,54 @@ function ChangePasswordModal({ admin, onClose }) {
 // ── Main Layout ────────────────────────────────────────────────────────────────
 export default function AdminLayout() {
   const { admin, logout } = useAuth();
-  const navigate = useNavigate();
+  const navigate  = useNavigate();
+  const location  = useLocation();
   const [collapsed, setCollapsed]         = useState(false);
   const [showChangePwd, setShowChangePwd] = useState(false);
+  const [badges, setBadges]               = useState({});
+  const [time, setTime]                   = useState(new Date());
+
+  const currentPage = NAV_ITEMS.find(n => location.pathname.includes(n.path));
+
+  // Clear reviews badge when visiting reviews page
+  useEffect(() => {
+    if (location.pathname.includes('reviews')) {
+      setBadges(prev => ({ ...prev, openComplaints: 0 }));
+    }
+  }, [location.pathname]);
+
+  // Live clock
+  useEffect(() => {
+    const tick = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(tick);
+  }, []);
+
+  // Fetch badge counts — on mount + every 30s
+  useEffect(() => {
+    fetchBadges();
+    const interval = setInterval(fetchBadges, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchBadges = async () => {
+    try {
+      const isOnReviews = window.location.pathname.includes('reviews');
+      const [workerRes, approvalRes, bookingRes, complaintRes, commissionRes] = await Promise.allSettled([
+        getServicemen(),
+        getServicemanServices(),
+        getAllBookings(),
+        isOnReviews ? Promise.resolve({ data: { Status: 'OK', Result: [] } }) : getComplaints(),
+        getCommissions(),
+      ]);
+      setBadges(prev => ({
+        pendingWorkers:     workerRes.status     === 'fulfilled' && workerRes.value.data.Status     === 'OK' ? workerRes.value.data.Result.filter(w => w.status === 'Pending').length : 0,
+        pendingApprovals:   approvalRes.status   === 'fulfilled' && approvalRes.value.data.Status   === 'OK' ? approvalRes.value.data.Result.filter(a => a.status === 'Pending').length : 0,
+        pendingBookings:    bookingRes.status     === 'fulfilled' && bookingRes.value.data.Status    === 'OK' ? bookingRes.value.data.Result.filter(b => b.bookingStatus === 'Pending').length : 0,
+        openComplaints:     isOnReviews ? 0 : (complaintRes.status === 'fulfilled' && complaintRes.value.data.Status === 'OK' ? complaintRes.value.data.Result.filter(c => c.status === 'Open').length : prev.openComplaints),
+        pendingSettlements: commissionRes.status === 'fulfilled' && commissionRes.value.data.Status === 'OK' ? commissionRes.value.data.Result.filter(c => c.settlementStatus === 'Pending').length : 0,
+      }));
+    } catch (_) {}
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -225,18 +270,49 @@ export default function AdminLayout() {
             <NavLink key={item.path} to={`/${item.path}`} style={{ textDecoration: 'none' }}>
               {({ isActive }) => (
                 <div style={{
-                  display: 'flex', alignItems: 'center', gap: 12,
+                  display: 'flex', alignItems: 'center', gap: 10,
                   padding: collapsed ? '10px 14px' : '10px 12px',
                   borderRadius: 10, marginBottom: 4, cursor: 'pointer',
                   background: isActive ? 'rgba(255,77,77,0.12)' : 'transparent',
                   border: isActive ? '1px solid rgba(255,77,77,0.2)' : '1px solid transparent',
                   transition: 'all 0.15s',
                   justifyContent: collapsed ? 'center' : 'flex-start',
+                  position: 'relative',
+                  width: '100%',
+                  overflow: 'hidden',
+                  boxSizing: 'border-box',
                 }}>
+                  {/* Icon */}
                   <span style={{ fontSize: 16, flexShrink: 0 }}>{item.icon}</span>
+
+                  {/* Label */}
                   {!collapsed && (
-                    <span style={{ fontSize: 13, fontWeight: isActive ? 700 : 500, color: isActive ? '#FF6B6B' : '#9CA3AF', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: 13, fontWeight: isActive ? 700 : 500, color: isActive ? '#FF6B6B' : '#9CA3AF', whiteSpace: 'nowrap', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {item.label}
+                    </span>
+                  )}
+
+                  {/* Badge — expanded sidebar */}
+                  {!collapsed && item.badgeKey && badges[item.badgeKey] > 0 && (
+                    <span style={{
+                      background: '#FF4D4D', color: '#fff', borderRadius: 999,
+                      fontSize: 10, fontWeight: 900, padding: '2px 7px',
+                      minWidth: 18, textAlign: 'center', lineHeight: '16px',
+                      flexShrink: 0,
+                    }}>
+                      {badges[item.badgeKey] > 99 ? '99+' : badges[item.badgeKey]}
+                    </span>
+                  )}
+
+                  {/* Badge — collapsed sidebar (top-right corner) */}
+                  {collapsed && item.badgeKey && badges[item.badgeKey] > 0 && (
+                    <span style={{
+                      position: 'absolute', top: 3, right: 3,
+                      background: '#FF4D4D', color: '#fff', borderRadius: 999,
+                      fontSize: 9, fontWeight: 900, padding: '1px 4px',
+                      minWidth: 14, textAlign: 'center', lineHeight: '14px',
+                    }}>
+                      {badges[item.badgeKey] > 9 ? '9+' : badges[item.badgeKey]}
                     </span>
                   )}
                 </div>
@@ -248,7 +324,7 @@ export default function AdminLayout() {
         {/* Collapse toggle */}
         <div style={{ padding: '12px 10px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
           <div onClick={() => setCollapsed(c => !c)}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 10, cursor: 'pointer', color: '#555A66', fontSize: 12, fontWeight: 600, border: '1px solid transparent', transition: 'all 0.15s' }}>
+            style={{ display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 10, cursor: 'pointer', color: '#555A66', fontSize: 12, fontWeight: 600, border: '1px solid transparent', transition: 'all 0.15s', position: 'relative' }}>
             <span style={{ fontSize: 14 }}>{collapsed ? '→' : '←'}</span>
             {!collapsed && 'Collapse'}
           </div>
@@ -258,57 +334,83 @@ export default function AdminLayout() {
       {/* ── MAIN AREA ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
-        {/* Top Bar */}
+        {/* ── TOP BAR ── */}
         <div style={{
-          height: 60, background: '#0D1117', borderBottom: '1px solid rgba(255,255,255,0.06)',
+          height: 64, background: '#0D1117',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '0 24px', flexShrink: 0, position: 'sticky', top: 0, zIndex: 50,
+          padding: '0 24px', flexShrink: 0, zIndex: 50,
+          gap: 16,
         }}>
-          <div style={{ fontSize: 13, color: '#555A66', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 16 }}>👋</span>
-            <span>Welcome back — <span style={{ color: '#FF6B6B', fontWeight: 700 }}>FixIt Admin Panel</span></span>
+
+          {/* LEFT — Current page breadcrumb */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+            {currentPage && (
+              <>
+                <div style={{ width: 36, height: 36, background: 'rgba(255,77,77,0.1)', border: '1px solid rgba(255,77,77,0.2)', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
+                  {currentPage.icon}
+                </div>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 900, color: '#fff', letterSpacing: -0.3 }}>{currentPage.label}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#555A66' }}>
+                    <span>FixIt</span>
+                    <span style={{ opacity: 0.4 }}>›</span>
+                    <span style={{ color: '#FF6B6B' }}>{currentPage.label}</span>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {/* CENTER — Live clock + date */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+            <div style={{ fontSize: 15, fontWeight: 900, color: '#E8EAF0', letterSpacing: 1, fontVariantNumeric: 'tabular-nums' }}>
+              {time.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
+            </div>
+            <div style={{ fontSize: 10, color: '#555A66', whiteSpace: 'nowrap' }}>
+              {time.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
+            </div>
+          </div>
 
-            {/* 🔑 Change Password button */}
-            <button onClick={() => setShowChangePwd(true)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                height: 34, padding: '0 14px',
-                background: 'rgba(255,77,77,0.08)',
-                border: '1px solid rgba(255,77,77,0.2)',
-                borderRadius: 9, color: '#FF6B6B',
-                fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                fontFamily: "'Syne',sans-serif", transition: 'all 0.2s',
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,77,77,0.15)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,77,77,0.08)'}
-            >
-              🔑 Change Password
+          {/* RIGHT — Alerts + Actions + Profile */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+
+            {/* Divider */}
+            <div style={{ width: 1, height: 24, background: 'rgba(255,255,255,0.06)', flexShrink: 0 }} />
+
+            {/* Change Password icon button */}
+            <button
+              onClick={() => setShowChangePwd(true)}
+              title="Change Password"
+              style={{ width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 9, fontSize: 15, cursor: 'pointer', transition: 'all 0.2s', flexShrink: 0 }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,77,77,0.1)'; e.currentTarget.style.borderColor = 'rgba(255,77,77,0.25)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; }}>
+              🔑
             </button>
 
-            {/* Admin avatar + name + role */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,77,77,0.06)', border: '1px solid rgba(255,77,77,0.15)', borderRadius: 10, padding: '6px 12px 6px 8px' }}>
-              <div style={{ width: 32, height: 32, background: 'rgba(255,77,77,0.2)', border: '1.5px solid rgba(255,77,77,0.4)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 900, color: '#FF6B6B', flexShrink: 0 }}>
+            {/* Admin Profile Card */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '5px 12px 5px 6px', flexShrink: 0 }}>
+              <div style={{ width: 32, height: 32, background: 'linear-gradient(135deg,#FF4D4D,#cc2200)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 900, color: '#fff', flexShrink: 0, boxShadow: '0 2px 8px rgba(255,77,77,0.3)' }}>
                 {(admin?.Name || 'A').charAt(0).toUpperCase()}
               </div>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', lineHeight: 1.2 }}>{admin?.Name || 'Admin'}</div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#FF4D4D', letterSpacing: 0.5 }}>{admin?.Role || 'Admin'}</div>
+                <div style={{ fontSize: 12, fontWeight: 800, color: '#fff', lineHeight: 1.3, whiteSpace: 'nowrap' }}>{admin?.Name || 'Admin'}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <div style={{ width: 5, height: 5, borderRadius: '50%', background: admin?.Role === 'Super Admin' ? '#FACC15' : '#4ADE80', boxShadow: `0 0 4px ${admin?.Role === 'Super Admin' ? '#FACC15' : '#4ADE80'}` }} />
+                  <span style={{ fontSize: 10, fontWeight: 700, color: admin?.Role === 'Super Admin' ? '#FACC15' : '#4ADE80', letterSpacing: 0.5, whiteSpace: 'nowrap' }}>{admin?.Role || 'Admin'}</span>
+                </div>
               </div>
             </div>
 
-            {/* Logout */}
-            <div onClick={handleLogout}
-              style={{
-                fontSize: 12, fontWeight: 700, color: '#555A66', cursor: 'pointer',
-                padding: '6px 14px', borderRadius: 8,
-                border: '1px solid rgba(255,255,255,0.06)',
-                background: 'rgba(255,255,255,0.02)',
-              }}>
-              Logout
-            </div>
+            {/* Logout button */}
+            <button
+              onClick={handleLogout}
+              title="Logout"
+              style={{ display: 'flex', alignItems: 'center', gap: 6, height: 36, padding: '0 14px', background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 9, color: '#9CA3AF', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: "'Syne',sans-serif", transition: 'all 0.2s', flexShrink: 0 }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; e.currentTarget.style.color = '#F87171'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.25)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#9CA3AF'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; }}>
+              🚪 Logout
+            </button>
           </div>
         </div>
 

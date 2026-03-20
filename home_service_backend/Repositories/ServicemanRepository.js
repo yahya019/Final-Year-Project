@@ -237,6 +237,50 @@ changeStatus = async (id, status) => {
 
 };
 
+signIn = async (email, password) => {
+    try {
+        const jwt = require('jsonwebtoken');
+        const collection = await getCollection("Serviceman");
+
+        const serviceman = await collection.findOne({ email: email.toLowerCase() });
+
+        if (!serviceman)
+            return { Status: "Fail", Result: "Email not found" };
+
+        const isMatch = await bcrypt.compare(password, serviceman.password);
+
+        if (!isMatch)
+            return { Status: "Fail", Result: "Incorrect password" };
+
+        if (serviceman.status === "Pending")
+            return { Status: "Fail", Result: "Your account is pending admin approval" };
+
+        if (serviceman.status === "Rejected")
+            return { Status: "Fail", Result: "Your account has been rejected" };
+
+        if (serviceman.status === "Suspended")
+            return { Status: "Fail", Result: "Your account has been suspended" };
+
+        const token = jwt.sign(
+            { id: serviceman._id, email: serviceman.email },
+            process.env.JWT_SECRET || 'fixit_secret',
+            { expiresIn: '7d' }
+        );
+
+        const { password: _, aadhaarNumber: __, ...safeServiceman } = serviceman;
+
+        return {
+            Status: "OK",
+            Result: {
+                token,
+                serviceman: safeServiceman
+            }
+        };
+
+    } catch (error) {
+        return { Status: "Fail", Result: error.message };
+    }
+};
 }
 
 module.exports = new ServicemanRepository();

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getAllBookings, updateBookingStatus } from '../utils/api';
+import { getAllBookings } from '../utils/api';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BookingsPage
@@ -34,29 +34,8 @@ function StatusBadge({ status }) {
   );
 }
 
-// ── Detail + Status Modal ─────────────────────────────────────────────────────
-function BookingModal({ booking, onClose, onStatusChange }) {
-  const [status, setStatus]   = useState(booking.bookingStatus);
-  const [saving, setSaving]   = useState(false);
-  const [error, setError]     = useState('');
-  const [success, setSuccess] = useState('');
-
-  const handleSave = async () => {
-    if (status === booking.bookingStatus) { onClose(); return; }
-    setError(''); setSuccess('');
-    setSaving(true);
-    try {
-      const res = await updateBookingStatus({ bookingId: toStr(booking._id), bookingStatus: status });
-      if (res.data.Status === 'OK') {
-        setSuccess('✅ Status updated successfully!');
-        onStatusChange(toStr(booking._id), status);
-        setTimeout(() => onClose(), 1200);
-      } else { setError(res.data.Result); }
-    } catch (err) {
-      setError(err?.response?.data?.Result || 'Something went wrong');
-    } finally { setSaving(false); }
-  };
-
+// ── Detail Modal (View Only) ──────────────────────────────────────────────────
+function BookingModal({ booking, onClose }) {
   const Row = ({ icon, label, value, mono, highlight }) => (
     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
       <span style={{ fontSize: 15, flexShrink: 0, marginTop: 1 }}>{icon}</span>
@@ -113,34 +92,17 @@ function BookingModal({ booking, onClose, onStatusChange }) {
           <Row icon="💳" label="PAYMENT"         value={`${booking.paymentMode} — ${booking.paymentStatus}`} />
           <Row icon="🕐" label="BOOKED ON"       value={booking.createdAt ? new Date(booking.createdAt).toLocaleString('en-IN') : '—'} mono />
 
-          {/* Status change */}
-          <div style={{ marginTop: 20 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#555A66', letterSpacing: 1, marginBottom: 10 }}>UPDATE STATUS</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-              {ALL_STATUSES.map(s => {
-                const c = STATUS_CFG[s];
-                return (
-                  <button key={s} onClick={() => setStatus(s)}
-                    style={{ padding: '8px 16px', borderRadius: 8, border: `1.5px solid ${status === s ? c.border : 'rgba(255,255,255,0.08)'}`, background: status === s ? c.bg : 'transparent', color: status === s ? c.color : '#555A66', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: "'Syne',sans-serif", transition: 'all 0.2s' }}>
-                    {c.icon} {s}
-                  </button>
-                );
-              })}
-            </div>
+          {/* View only note */}
+          <div style={{ marginTop: 20, background: 'rgba(96,165,250,0.06)', border: '1px solid rgba(96,165,250,0.15)', borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 14 }}>ℹ️</span>
+            <span style={{ fontSize: 12, color: '#60A5FA' }}>Booking status is managed by the serviceman only.</span>
+          </div>
 
-            {error   && <div style={{ background: '#2A1222', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: '10px 14px', color: '#F87171', fontSize: 12, fontWeight: 600, marginBottom: 12 }}>⚠️ {error}</div>}
-            {success && <div style={{ background: '#1A2A1A', border: '1px solid rgba(74,222,128,0.2)', borderRadius: 8, padding: '10px 14px', color: '#4ADE80', fontSize: 12, fontWeight: 600, marginBottom: 12 }}>{success}</div>}
-
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={onClose}
-                style={{ flex: 1, height: 44, background: '#0a0d12', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, color: '#9CA3AF', fontFamily: "'Syne',sans-serif", fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                Cancel
-              </button>
-              <button onClick={handleSave} disabled={saving}
-                style={{ flex: 2, height: 44, background: saving ? '#1a1a1a' : status === booking.bookingStatus ? 'rgba(255,255,255,0.05)' : '#FF4D4D', border: 'none', borderRadius: 10, color: saving ? '#555A66' : status === booking.bookingStatus ? '#555A66' : '#fff', fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', transition: 'all 0.2s' }}>
-                {saving ? '⏳ Saving...' : status === booking.bookingStatus ? 'No Changes' : `Update to ${status}`}
-              </button>
-            </div>
+          <div style={{ marginTop: 16 }}>
+            <button onClick={onClose}
+              style={{ width: '100%', height: 44, background: '#0a0d12', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, color: '#9CA3AF', fontFamily: "'Syne',sans-serif", fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+              Close
+            </button>
           </div>
         </div>
       </div>
@@ -338,7 +300,6 @@ export default function BookingsPage() {
         <BookingModal
           booking={selected}
           onClose={() => setSelected(null)}
-          onStatusChange={handleStatusChange}
         />
       )}
     </div>

@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "fixit-serviceman",
+    "slug": "fixit-serviceman",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "ios": { "supportsTablet": true },
+    "android": { "adaptiveIcon": { "backgroundColor": "#080B0F" } }
+  }
+}

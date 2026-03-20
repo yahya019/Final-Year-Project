@@ -5,7 +5,7 @@ const cors = require('cors');
 const app = express();
 app.use(express.json());
 app.use(cors({
-    origin: 'http://localhost:3001', // React runs on 3001 (backend on 3000)
+    origin: '*', // React runs on 3001 (backend on 3000)
     credentials: true
 }));
 
@@ -70,9 +70,7 @@ app.post("/Customer/SignIn", CustomerController.signIn);
 app.get("/Customer/List", CustomerController.customerList);
 app.put("/Customer/ChangePassword", CustomerController.changePassword);
 app.post("/Customer/ForgotPassword", CustomerController.forgotPassword);
-// app.put("/Customer/UpdateAccount", CustomerController.updateAccount);
-// app.get("/Customer/ByCity/:city", CustomerController.customerByCity);
-// app.get("/Customer/ById/:id", CustomerController.customerById);
+
 
 /* ================= SERVICEMEN SERVICE ROUTES ================= */
 const ServicemanServiceController = require("./Controllers/ServicemanServiceController");
@@ -80,16 +78,15 @@ app.post("/ServicemanService/Apply", ServicemanServiceController.applyService);
 app.get("/ServicemanService/List", ServicemanServiceController.list);
 app.get("/ServicemanService/ByServiceman/:servicemanId", ServicemanServiceController.servicemanServices);
 app.put("/ServicemanService/ChangeStatus", ServicemanServiceController.changeStatus);
-// app.get("/ServicemanService/ByService/:serviceId", ServicemanServiceController.servicemanByServiceId);
-// app.get("/ServicemanService/ByCityAndService", ServicemanServiceController.servicemanByCityAndService); 
+app.get("/ServicemanService/ByService/:serviceId", ServicemanServiceController.servicesByService);
+
 
 /* ================= SERVICEMEN SLOT ROUTES ================= */
 const ServicemanSlotController = require("./Controllers/ServicemanSlotController");
 app.post("/ServicemanSlot/Create", ServicemanSlotController.createSlot);
 app.get("/ServicemanSlot/Get/:id", ServicemanSlotController.getSlotById);
-// app.get("/ServicemanSlot/ByServiceman/:servicemanId", ServicemanSlotController.slotsByServiceman);
-// app.put("/ServicemanSlot/Update", ServicemanSlotController.updateSlot);
-// app.put("/ServicemanSlot/Delete", ServicemanSlotController.deleteSlot);     
+app.get("/ServicemanSlot/ByServiceman/:servicemanId", ServicemanSlotController.slotsByServiceman);
+app.delete("/ServicemanSlot/Delete/:id", ServicemanSlotController.deleteSlot);     
 
 /* ================= BOOKING ROUTES ================= */
 const BookingController = require("./Controllers/BookingController");
@@ -97,11 +94,8 @@ app.post("/Booking/Create", BookingController.createBooking);
 app.put("/Booking/UpdateStatus", BookingController.updateBookingStatus);
 app.get("/Booking/Customer/:customerId", BookingController.getBookingsByCustomer);
 app.get("/Booking/List", BookingController.getAllBookings);
-// app.get("/Booking/Serviceman/:servicemanId", BookingController.getBookingsByServiceman);
-// app.get("/Booking/Details/:id", BookingController.getBookingDetails);
-// app.get("/Booking/ByStatus/:status", BookingController.getBookingsByStatus);
-// app.get("/Booking/ByDate/:date", BookingController.getBookingsByDate);
-// app.get("/Booking/ByService/:serviceId", BookingController.getBookingsByServiceId);
+app.get("/Booking/Serviceman/:servicemanId", BookingController.getBookingsByServiceman);
+
 
 /* ================= REVIEW ROUTES ================= */
 const ReviewController = require("./Controllers/ReviewController");
@@ -109,7 +103,6 @@ app.post("/Review/Create", ReviewController.createReview);
 app.get("/Review/Serviceman/:id", ReviewController.getReviewsByServiceman);
 app.get("/Review/Service/:id", ReviewController.getReviewsByService);
 app.get("/Review/List", ReviewController.getAllReviews);
-// app.get("/Review/Customer/:id", ReviewController.getReviewsByCustomer);
 
 /* ================= FEEDBACK ROUTES ================= */
 const FeedbackController = require("./Controllers/FeedbackController");
@@ -147,9 +140,9 @@ app.post("/Commission/Create", CommissionController.createCommission);
 app.get("/Commission/List", CommissionController.commissionList);
 app.get("/Commission/Booking/:bookingId", CommissionController.getByBooking);
 app.put("/Commission/Settle", CommissionController.settleCommission);
+app.get("/Commission/Serviceman/:servicemanId", CommissionController.getByServiceman);
 
 
-app.listen(3000, () => {
-    console.log('http://localhost:3000');
-}
-);
+app.listen(3000, '0.0.0.0', () => {
+    console.log('Server running on port 3000');
+});

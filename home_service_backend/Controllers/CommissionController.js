@@ -24,6 +24,10 @@ class CommissionController {
 
             return res.status(200).json(result);
 
+            if (result.Status === "Conflict")    // ← ADD THIS
+    return res.status(409).json(result);
+
+
         } catch (error) {
 
             return res.status(500).json({
@@ -107,6 +111,19 @@ class CommissionController {
         }
 
     };
+
+    getByServiceman = async (req, res) => {
+    try {
+        const { servicemanId } = req.params;
+        if (!servicemanId)
+            return res.status(400).json({ Status: "Fail", Result: "Serviceman Id required" });
+
+        const result = await CommissionRepository.getByServiceman(servicemanId);
+        return res.status(200).json(result);
+    } catch (error) {
+        return res.status(500).json({ Status: "Fail", Result: error.message });
+    }
+};
 
 }
 

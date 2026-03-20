@@ -56,6 +56,19 @@ class BookingController {
         }
 
     };
+
+    getBookingsByServiceman = async (req, res) => {
+    try {
+        const { servicemanId } = req.params;
+        if (!servicemanId)
+            return res.status(400).json({ Status: "Fail", Result: "Serviceman Id required" });
+
+        const result = await BookingRepository.getBookingsByServiceman(servicemanId);
+        return res.status(200).json(result);
+    } catch (error) {
+        return res.status(500).json({ Status: "Fail", Result: error.message });
+    }
+};
     
     updateBookingStatus = async (req, res) => {
 

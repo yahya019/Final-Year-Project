@@ -65,54 +65,44 @@ class CustomerRepository {
 
 
     /* ================= CUSTOMER LOGIN ================= */
+signIn = async (contactNumber, password) => {
+    try {
+        const jwt = require('jsonwebtoken');
+        const collection = await getCollection("Customer");
 
-    signIn = async (contactNumber, password) => {
+        const customer = await collection.findOne({ contactNumber });
 
-        try {
+        if (!customer)
+            return { Status: "Fail", Result: "Invalid contact number" };
 
-            const collection = await getCollection("Customer");
+        if (customer.status !== "Active")
+            return { Status: "Fail", Result: "Account is inactive" };
 
-            const customer = await collection.findOne({
-                contactNumber: contactNumber
-            });
+        const isMatch = await bcrypt.compare(password, customer.password);
 
-            if (!customer)
-                return { Status: "Fail", Result: "Invalid contact number" };
+        if (!isMatch)
+            return { Status: "Fail", Result: "Invalid password" };
 
-            if (customer.status !== "Active")
-                return { Status: "Fail", Result: "Account is inactive" };
+        const token = jwt.sign(
+            { id: customer._id, contactNumber: customer.contactNumber },
+            process.env.JWT_SECRET || 'fixit_secret',
+            { expiresIn: '7d' }
+        );
 
-            const isMatch = await bcrypt.compare(password, customer.password);
+        const { password: _, ...safeCustomer } = customer;
 
-            if (!isMatch)
-                return { Status: "Fail", Result: "Invalid password" };
+        return {
+            Status: "OK",
+            Result: {
+                token,
+                customer: safeCustomer
+            }
+        };
 
-            return {
-
-                Status: "OK",
-
-                Result: {
-
-                    _id: customer._id,
-                    fullName: customer.fullName,
-                    contactNumber: customer.contactNumber,
-                    email: customer.email
-
-                }
-
-            };
-
-        }
-        catch (error) {
-
-            return {
-                Status: "Fail",
-                Result: error.message
-            };
-
-        }
-
-    };
+    } catch (error) {
+        return { Status: "Fail", Result: error.message };
+    }
+};
 
 
     /* ================= CUSTOMER LIST ================= */

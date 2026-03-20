@@ -233,52 +233,166 @@ class BookingRepository {
 
     /* ================= UPDATE BOOKING STATUS ================= */
 
-updateBookingStatus = async (bookingId, status) => {
+    updateBookingStatus = async (bookingId, status) => {
 
-    try {
+        try {
 
-        const bookingCollection = await getCollection("BookingMaster");
+            const bookingCollection = await getCollection("BookingMaster");
 
-        if (!ObjectId.isValid(bookingId))
-            return { Status: "Fail", Result: "Invalid Booking Id" };
+            if (!ObjectId.isValid(bookingId))
+                return { Status: "Fail", Result: "Invalid Booking Id" };
 
-        const booking = await bookingCollection.findOne({
-            _id: new ObjectId(bookingId)
-        });
+            const booking = await bookingCollection.findOne({
+                _id: new ObjectId(bookingId)
+            });
 
-        if (!booking)
-            return { Status: "Fail", Result: "Booking not found" };
+            if (!booking)
+                return { Status: "Fail", Result: "Booking not found" };
 
-        await bookingCollection.updateOne(
-            { _id: new ObjectId(bookingId) },
-            {
-                $set: {
-                    bookingStatus: status
+            await bookingCollection.updateOne(
+                { _id: new ObjectId(bookingId) },
+                {
+                    $set: {
+                        bookingStatus: status
+                    }
+                }
+            );
+
+            return {
+                Status: "OK",
+                Result: "Booking status updated successfully"
+            };
+
+        } catch (error) {
+
+            return {
+                Status: "Fail",
+                Result: error.message
+            };
+
+        }
+
+        if (status === "Completed") {
+            const commissionCollection = await getCollection("Commission");
+            const existing = await commissionCollection.findOne({ bookingId: new ObjectId(bookingId) });
+            if (!existing) {
+                await commissionCollection.insertOne({
+                    bookingId: new ObjectId(bookingId),
+                    totalAmount: booking.totalAmount,
+                    commissionPercentage: 15,
+                    commissionAmount: booking.totalAmount * 0.15,
+                    servicemanEarning: booking.totalAmount * 0.85,
+                    settlementStatus: "Pending",
+                    settledAt: null,
+                    createdAt: new Date()
+                });
+            }
+        }
+
+    }; updateBookingStatus = async (bookingId, status) => {
+        try {
+            const bookingCollection = await getCollection("BookingMaster");
+
+            if (!ObjectId.isValid(bookingId))
+                return { Status: "Fail", Result: "Invalid Booking Id" };
+
+            const booking = await bookingCollection.findOne({
+                _id: new ObjectId(bookingId)
+            });
+
+            if (!booking)
+                return { Status: "Fail", Result: "Booking not found" };
+
+            await bookingCollection.updateOne(
+                { _id: new ObjectId(bookingId) },
+                { $set: { bookingStatus: status } }
+            );
+
+            // ── AUTO CREATE COMMISSION WHEN COMPLETED ──
+            if (status === "Completed") {
+                const commissionCollection = await getCollection("Commission");
+
+                const existing = await commissionCollection.findOne({
+                    bookingId: new ObjectId(bookingId)
+                });
+
+                if (!existing) {
+                    const commissionPercentage = 15;
+                    const commissionAmount = booking.totalAmount * commissionPercentage / 100;
+                    const servicemanEarning = booking.totalAmount - commissionAmount;
+
+                    await commissionCollection.insertOne({
+                        bookingId: new ObjectId(bookingId),
+                        totalAmount: booking.totalAmount,
+                        commissionPercentage: commissionPercentage,
+                        commissionAmount: commissionAmount,
+                        servicemanEarning: servicemanEarning,
+                        settlementStatus: "Pending",
+                        settledAt: null,
+                        createdAt: new Date()
+                    });
                 }
             }
-        );
+            // ───────────────────────────────────────────
 
-        return {
-            Status: "OK",
-            Result: "Booking status updated successfully"
-        };
+            return { Status: "OK", Result: "Booking status updated successfully" };
 
-    } catch (error) {
+        } catch (error) {
+            return { Status: "Fail", Result: error.message };
+        }
+    };
 
-        return {
-            Status: "Fail",
-            Result: error.message
-        };
+    getAllBookings = async () => {
+        try {
+            const collection = await getCollection("BookingMaster");
 
-    }
+            const bookings = await collection.aggregate([
+                {
+                    $lookup: {
+                        from: "Customer",
+                        localField: "customerId",
+                        foreignField: "_id",
+                        as: "customer"
+                    }
+                },
+                { $unwind: { path: "$customer", preserveNullAndEmptyArrays: true } },
+                {
+                    $lookup: {
+                        from: "Serviceman",
+                        localField: "servicemanId",
+                        foreignField: "_id",
+                        as: "serviceman"
+                    }
+                },
+                { $unwind: { path: "$serviceman", preserveNullAndEmptyArrays: true } },
+                {
+                    $lookup: {
+                        from: "Service",
+                        localField: "serviceId",
+                        foreignField: "_id",
+                        as: "service"
+                    }
+                },
+                { $unwind: { path: "$service", preserveNullAndEmptyArrays: true } },
+                { $sort: { createdAt: -1 } }
+            ]).toArray();
 
-};
+            return { Status: "OK", Result: bookings };
 
-getAllBookings = async () => {
+        } catch (error) {
+            return { Status: "Fail", Result: error.message };
+        }
+    };
+
+    getBookingsByServiceman = async (servicemanId) => {
     try {
         const collection = await getCollection("BookingMaster");
 
+        if (!ObjectId.isValid(servicemanId))
+            return { Status: "Fail", Result: "Invalid Serviceman Id" };
+
         const bookings = await collection.aggregate([
+            { $match: { servicemanId: new ObjectId(servicemanId) } },
             {
                 $lookup: {
                     from: "Customer",
@@ -288,15 +402,6 @@ getAllBookings = async () => {
                 }
             },
             { $unwind: { path: "$customer", preserveNullAndEmptyArrays: true } },
-            {
-                $lookup: {
-                    from: "Serviceman",
-                    localField: "servicemanId",
-                    foreignField: "_id",
-                    as: "serviceman"
-                }
-            },
-            { $unwind: { path: "$serviceman", preserveNullAndEmptyArrays: true } },
             {
                 $lookup: {
                     from: "Service",

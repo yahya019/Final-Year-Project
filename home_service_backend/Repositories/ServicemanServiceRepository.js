@@ -212,6 +212,35 @@ class ServicemanServiceRepository {
 
     };
 
+    servicesByService = async (serviceId) => {
+    try {
+        const collection = await getCollection("ServicemanService");
+
+        const data = await collection.aggregate([
+            {
+                $match: {
+                    serviceId: new ObjectId(serviceId),
+                    status: "Approved"
+                }
+            },
+            {
+                $lookup: {
+                    from: "Serviceman",
+                    localField: "servicemanId",
+                    foreignField: "_id",
+                    as: "serviceman"
+                }
+            },
+            { $unwind: "$serviceman" },
+        ]).toArray();
+
+        return { Status: "OK", Result: data };
+
+    } catch (error) {
+        return { Status: "Fail", Result: error.message };
+    }
+};
+
 }
 
 module.exports = new ServicemanServiceRepository(); 

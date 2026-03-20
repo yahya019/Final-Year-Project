@@ -55,6 +55,15 @@ class ServicemanServiceController {
 
     };
 
+servicesByService = async (req, res) => {
+    try {
+        const { serviceId } = req.params;
+        const result = await ServicemanServiceRepository.servicesByService(serviceId);
+        return res.status(200).json(result);
+    } catch (error) {
+        return res.status(500).json({ Status: "Fail", Result: error.message });
+    }
+};
 
     servicemanServices = async (req, res) => {
 

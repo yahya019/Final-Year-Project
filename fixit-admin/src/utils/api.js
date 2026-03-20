@@ -129,10 +129,11 @@ export const getFeedbackByCustomer   = (customerId)  => api.get(`/Feedback/Custo
 // ─── COMPLAINT ────────────────────────────────────────────────────────────────
 // GET  /Complaint/List
 export const getAllComplaints         = ()            => api.get('/Complaint/List');
+export const getComplaints            = ()            => api.get('/Complaint/List');
 // GET  /Complaint/Customer/:customerId
 export const getComplaintByCustomer  = (customerId)  => api.get(`/Complaint/Customer/${customerId}`);
 // PUT  /Complaint/UpdateStatus        { Id, Status }
-export const updateComplaintStatus   = (Id, Status)  => api.put('/Complaint/UpdateStatus', { Id, Status });
+export const updateComplaintStatus   = (data)        => api.put('/Complaint/UpdateStatus', data); // { id, status, adminRemark }
 
 // ─── SERVICEMAN PAYMENT / SETTLEMENT ──────────────────────────────────────────
 // GET  /ServicemanPayment/List

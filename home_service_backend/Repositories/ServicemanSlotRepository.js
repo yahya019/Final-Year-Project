@@ -141,6 +141,47 @@ getSlotById = async (_id) => {
 
 };
 
+slotsByServiceman = async (servicemanId) => {
+    try {
+        const collection = await getCollection("ServicemanSlot");
+
+        if (!ObjectId.isValid(servicemanId))
+            return { Status: "Fail", Result: "Invalid Serviceman Id" };
+
+        const slots = await collection.find({
+            servicemanId: new ObjectId(servicemanId)
+        }).sort({ availableDate: 1 }).toArray();
+
+        return { Status: "OK", Result: slots };
+
+    } catch (error) {
+        return { Status: "Fail", Result: error.message };
+    }
+};
+
+deleteSlot = async (id) => {
+    try {
+        const collection = await getCollection("ServicemanSlot");
+
+        if (!ObjectId.isValid(id))
+            return { Status: "Fail", Result: "Invalid Slot Id" };
+
+        const slot = await collection.findOne({ _id: new ObjectId(id) });
+
+        if (!slot)
+            return { Status: "Fail", Result: "Slot not found" };
+
+        if (slot.bookedSlots > 0)
+            return { Status: "Fail", Result: "Cannot delete slot with existing bookings" };
+
+        await collection.deleteOne({ _id: new ObjectId(id) });
+
+        return { Status: "OK", Result: "Slot deleted successfully" };
+
+    } catch (error) {
+        return { Status: "Fail", Result: error.message };
+    }
+};
 }
 
 module.exports = new ServicemanSlotRepository();

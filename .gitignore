@@ -1,0 +1,18 @@
+# Node
+node_modules/
+.cache/
+
+# Logs
+*.log
+
+# System files
+*.lnk
+desktop.ini
+
+# Android
+.idea/
+.gradle/
+build/
+
+# Mac (just in case)
+.DS_Store 
