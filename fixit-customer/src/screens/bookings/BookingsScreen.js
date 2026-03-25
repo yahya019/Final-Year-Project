@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  RefreshControl, ActivityIndicator, Modal, Alert, TextInput,
+  RefreshControl, ActivityIndicator, Modal, TextInput, StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -15,18 +15,17 @@ const toStr = (id) => {
 };
 
 const STATUS = {
-  Pending:    { color: '#FACC15', bg: 'rgba(250,204,21,0.12)',  border: 'rgba(250,204,21,0.25)',  icon: '🕐' },
-  Confirmed:  { color: '#60A5FA', bg: 'rgba(96,165,250,0.12)',  border: 'rgba(96,165,250,0.25)',  icon: '✅' },
-  InProgress: { color: '#FB923C', bg: 'rgba(251,146,60,0.12)',  border: 'rgba(251,146,60,0.25)',  icon: '🔧' },
-  Completed:  { color: '#4ADE80', bg: 'rgba(74,222,128,0.12)',  border: 'rgba(74,222,128,0.25)',  icon: '🎉' },
-  Cancelled:  { color: '#F87171', bg: 'rgba(248,113,113,0.12)', border: 'rgba(248,113,113,0.25)', icon: '❌' },
+  Pending:    { color: '#F59E0B', bg: '#FFFBEB', border: '#FDE68A', icon: '🕐' },
+  Confirmed:  { color: '#3B82F6', bg: '#EFF6FF', border: '#BFDBFE', icon: '✅' },
+  InProgress: { color: '#F97316', bg: '#FFF7ED', border: '#FED7AA', icon: '🔧' },
+  Completed:  { color: '#10B981', bg: '#ECFDF5', border: '#A7F3D0', icon: '🎉' },
+  Cancelled:  { color: '#EF4444', bg: '#FEF2F2', border: '#FECACA', icon: '❌' },
 };
 
-// ── Review Modal ──────────────────────────────────────────────────────────────
 function ReviewModal({ booking, visible, onClose }) {
   const { customer } = useAuth();
-  const [rating,  setRating]  = useState(5);
-  const [review,  setReview]  = useState('');
+  const [rating, setRating]   = useState(5);
+  const [review, setReview]   = useState('');
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState('');
   const [success, setSuccess] = useState('');
@@ -36,18 +35,15 @@ function ReviewModal({ booking, visible, onClose }) {
     setLoading(true);
     try {
       const res = await createReview({
-        customerId:   toStr(customer._id),
-        bookingId:    toStr(booking._id),
-        servicemanId: toStr(booking.servicemanId),
-        serviceId:    toStr(booking.serviceId),
-        rating,
-        review: review.trim() || null,
+        customerId: toStr(customer._id), bookingId: toStr(booking._id),
+        servicemanId: toStr(booking.servicemanId), serviceId: toStr(booking.serviceId),
+        rating, review: review.trim() || null,
       });
       if (res.data.Status === 'OK') {
-        setSuccess('✅ Review submitted!');
+        setSuccess('Review submitted! Thank you 🎉');
         setTimeout(() => { onClose(); setRating(5); setReview(''); setSuccess(''); }, 1500);
       } else { setError(res.data.Result); }
-    } catch (err) { setError(err?.response?.data?.Result || 'Failed to submit'); }
+    } catch (err) { setError(err?.response?.data?.Result || 'Failed'); }
     finally { setLoading(false); }
   };
 
@@ -57,7 +53,7 @@ function ReviewModal({ booking, visible, onClose }) {
         <View style={m.sheet}>
           <View style={m.header}>
             <Text style={m.title}>Rate Your Experience ⭐</Text>
-            <TouchableOpacity onPress={onClose}><Ionicons name="close" size={22} color="#555A66" /></TouchableOpacity>
+            <TouchableOpacity onPress={onClose} style={m.closeBtn}><Ionicons name="close" size={20} color="#6B7280" /></TouchableOpacity>
           </View>
           {error   ? <View style={m.errorBox}><Text style={m.errorText}>{error}</Text></View> : null}
           {success ? <View style={m.successBox}><Text style={m.successText}>{success}</Text></View> : null}
@@ -65,14 +61,12 @@ function ReviewModal({ booking, visible, onClose }) {
           <View style={m.starsRow}>
             {[1,2,3,4,5].map(n => (
               <TouchableOpacity key={n} onPress={() => setRating(n)}>
-                <Text style={[m.star, { color: n <= rating ? '#FACC15' : '#2A2D35' }]}>★</Text>
+                <Text style={[m.star, { color: n <= rating ? '#F59E0B' : '#E5E7EB' }]}>★</Text>
               </TouchableOpacity>
             ))}
           </View>
-          <Text style={m.label}>REVIEW (optional)</Text>
-          <View style={[m.inputWrap, { height: 80, alignItems: 'flex-start', paddingTop: 12 }]}>
-            <TextInput style={[m.input, { textAlignVertical: 'top' }]} placeholder="Share your experience..." placeholderTextColor="#555A66" value={review} onChangeText={setReview} multiline numberOfLines={3} />
-          </View>
+          <Text style={m.label}>WRITE A REVIEW (optional)</Text>
+          <TextInput style={m.textarea} placeholder="Share your experience..." placeholderTextColor="#9CA3AF" value={review} onChangeText={setReview} multiline numberOfLines={3} textAlignVertical="top" />
           <TouchableOpacity style={m.btn} onPress={handleSubmit} disabled={loading}>
             {loading ? <ActivityIndicator color="#fff" /> : <Text style={m.btnText}>Submit Review</Text>}
           </TouchableOpacity>
@@ -82,7 +76,6 @@ function ReviewModal({ booking, visible, onClose }) {
   );
 }
 
-// ── Complaint Modal ───────────────────────────────────────────────────────────
 function ComplaintModal({ booking, visible, onClose }) {
   const { customer } = useAuth();
   const [message, setMessage] = useState('');
@@ -96,16 +89,14 @@ function ComplaintModal({ booking, visible, onClose }) {
     setLoading(true);
     try {
       const res = await createComplaint({
-        customerId:   toStr(customer._id),
-        bookingId:    toStr(booking._id),
-        servicemanId: toStr(booking.servicemanId),
-        message:      message.trim(),
+        customerId: toStr(customer._id), bookingId: toStr(booking._id),
+        servicemanId: toStr(booking.servicemanId), message: message.trim(),
       });
       if (res.data.Status === 'OK') {
-        setSuccess('✅ Complaint submitted!');
+        setSuccess('Complaint submitted! We will look into it.');
         setTimeout(() => { onClose(); setMessage(''); setSuccess(''); }, 1500);
       } else { setError(res.data.Result); }
-    } catch (err) { setError(err?.response?.data?.Result || 'Failed to submit'); }
+    } catch (err) { setError(err?.response?.data?.Result || 'Failed'); }
     finally { setLoading(false); }
   };
 
@@ -114,16 +105,14 @@ function ComplaintModal({ booking, visible, onClose }) {
       <View style={m.overlay}>
         <View style={m.sheet}>
           <View style={m.header}>
-            <Text style={m.title}>File a Complaint 📝</Text>
-            <TouchableOpacity onPress={onClose}><Ionicons name="close" size={22} color="#555A66" /></TouchableOpacity>
+            <Text style={m.title}>File a Complaint 🚩</Text>
+            <TouchableOpacity onPress={onClose} style={m.closeBtn}><Ionicons name="close" size={20} color="#6B7280" /></TouchableOpacity>
           </View>
           {error   ? <View style={m.errorBox}><Text style={m.errorText}>{error}</Text></View> : null}
           {success ? <View style={m.successBox}><Text style={m.successText}>{success}</Text></View> : null}
-          <Text style={m.label}>COMPLAINT MESSAGE</Text>
-          <View style={[m.inputWrap, { height: 100, alignItems: 'flex-start', paddingTop: 12 }]}>
-            <TextInput style={[m.input, { textAlignVertical: 'top' }]} placeholder="Describe your issue..." placeholderTextColor="#555A66" value={message} onChangeText={setMessage} multiline numberOfLines={4} />
-          </View>
-          <TouchableOpacity style={[m.btn, { backgroundColor: '#F87171' }]} onPress={handleSubmit} disabled={loading}>
+          <Text style={m.label}>DESCRIBE YOUR ISSUE</Text>
+          <TextInput style={[m.textarea, { height: 100 }]} placeholder="What went wrong?" placeholderTextColor="#9CA3AF" value={message} onChangeText={setMessage} multiline numberOfLines={4} textAlignVertical="top" />
+          <TouchableOpacity style={[m.btn, { backgroundColor: '#EF4444' }]} onPress={handleSubmit} disabled={loading}>
             {loading ? <ActivityIndicator color="#fff" /> : <Text style={m.btnText}>Submit Complaint</Text>}
           </TouchableOpacity>
         </View>
@@ -133,33 +122,34 @@ function ComplaintModal({ booking, visible, onClose }) {
 }
 
 const m = StyleSheet.create({
-  overlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  sheet:      { backgroundColor: '#0D1117', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, borderWidth: 1, borderColor: 'rgba(255,77,77,0.15)' },
+  overlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  sheet:      { backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingBottom: 40 },
   header:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  title:      { fontSize: 18, fontWeight: '900', color: '#fff' },
-  errorBox:   { backgroundColor: '#2A1222', borderRadius: 8, padding: 12, marginBottom: 14 },
-  errorText:  { color: '#F87171', fontSize: 12 },
-  successBox: { backgroundColor: '#1A2A1A', borderRadius: 8, padding: 12, marginBottom: 14 },
-  successText:{ color: '#4ADE80', fontSize: 12 },
-  label:      { fontSize: 10, fontWeight: '700', color: '#555A66', letterSpacing: 1, marginBottom: 8 },
+  title:      { fontSize: 18, fontWeight: '900', color: '#1A1D23' },
+  closeBtn:   { width: 36, height: 36, backgroundColor: '#F5F6FA', borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  errorBox:   { backgroundColor: '#FEF2F2', borderRadius: 10, padding: 12, marginBottom: 14 },
+  errorText:  { color: '#EF4444', fontSize: 13 },
+  successBox: { backgroundColor: '#ECFDF5', borderRadius: 10, padding: 12, marginBottom: 14 },
+  successText:{ color: '#10B981', fontSize: 13 },
+  label:      { fontSize: 11, fontWeight: '700', color: '#6B7280', letterSpacing: 0.5, marginBottom: 10 },
   starsRow:   { flexDirection: 'row', gap: 8, marginBottom: 20 },
-  star:       { fontSize: 40 },
-  inputWrap:  { flexDirection: 'row', alignItems: 'center', backgroundColor: '#080B0F', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.08)', borderRadius: 12, paddingHorizontal: 14, height: 50, marginBottom: 20 },
-  input:      { flex: 1, color: '#E8EAF0', fontSize: 14 },
+  star:       { fontSize: 44 },
+  textarea:   { backgroundColor: '#F9FAFB', borderWidth: 1.5, borderColor: '#E8EBF0', borderRadius: 14, padding: 14, fontSize: 14, color: '#1A1D23', height: 80, marginBottom: 20 },
   btn:        { height: 52, backgroundColor: '#FF4D4D', borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
   btnText:    { color: '#fff', fontSize: 15, fontWeight: '800' },
 });
 
-// ── Booking Detail Modal ──────────────────────────────────────────────────────
 function BookingDetailModal({ booking, visible, onClose }) {
   const [showReview,    setShowReview]    = useState(false);
   const [showComplaint, setShowComplaint] = useState(false);
   if (!booking) return null;
   const c = STATUS[booking.bookingStatus] || STATUS.Pending;
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={d.overlay}>
         <View style={d.sheet}>
+          <View style={d.handle} />
           <View style={d.header}>
             <View>
               <Text style={d.bookingNum}>{booking.bookingNumber}</Text>
@@ -168,45 +158,43 @@ function BookingDetailModal({ booking, visible, onClose }) {
               </View>
             </View>
             <TouchableOpacity onPress={onClose} style={d.closeBtn}>
-              <Ionicons name="close" size={20} color="#555A66" />
+              <Ionicons name="close" size={20} color="#6B7280" />
             </TouchableOpacity>
           </View>
           <ScrollView showsVerticalScrollIndicator={false}>
-            <View style={d.infoGrid}>
-              {[
-                { icon: '🛠️', label: 'Service',     value: booking.service?.serviceName || '—' },
-                { icon: '📅', label: 'Booking Date', value: new Date(booking.bookingDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) },
-                { icon: '💳', label: 'Payment',      value: `${booking.paymentMode} • ${booking.paymentStatus}` },
-              ].map(r => (
-                <View key={r.label} style={d.infoRow}>
-                  <Text style={d.infoIcon}>{r.icon}</Text>
-                  <View>
-                    <Text style={d.infoLabel}>{r.label}</Text>
-                    <Text style={d.infoValue}>{r.value}</Text>
-                  </View>
+            {[
+              { icon: '🛠️', label: 'Service',     value: booking.service?.serviceName || '—' },
+              { icon: '📅', label: 'Booking Date', value: new Date(booking.bookingDate).toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }) },
+              { icon: '📍', label: 'Address',      value: booking.address },
+              { icon: '💳', label: 'Payment',      value: `${booking.paymentMode} • ${booking.paymentStatus}` },
+            ].map(r => (
+              <View key={r.label} style={d.infoRow}>
+                <Text style={d.infoIcon}>{r.icon}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={d.infoLabel}>{r.label}</Text>
+                  <Text style={d.infoValue}>{r.value}</Text>
                 </View>
-              ))}
-            </View>
-            <View style={d.addressBox}>
-              <Ionicons name="location" size={13} color="#FF6B6B" />
-              <Text style={d.addressText}>{booking.address}</Text>
-            </View>
+              </View>
+            ))}
+
             <View style={d.amountBox}>
               <Text style={d.amountLabel}>Total Amount</Text>
-              <Text style={d.amountValue}>₹{Number(booking.totalAmount).toLocaleString()}</Text>
+              <Text style={d.amountValue}>₹{Math.round(Number(booking.totalAmount))}</Text>
             </View>
+
             {booking.bookingStatus === 'Completed' && (
               <View style={d.actionsRow}>
-                <TouchableOpacity style={d.reviewBtn} onPress={() => setShowReview(true)}>
-                  <Ionicons name="star-outline" size={16} color="#FACC15" />
-                  <Text style={d.reviewBtnText}>Rate Service</Text>
+                <TouchableOpacity style={d.rateBtn} onPress={() => setShowReview(true)}>
+                  <Ionicons name="star" size={16} color="#F59E0B" />
+                  <Text style={d.rateBtnText}>Rate Service</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={d.complaintBtn} onPress={() => setShowComplaint(true)}>
-                  <Ionicons name="flag-outline" size={16} color="#F87171" />
-                  <Text style={d.complaintBtnText}>Complaint</Text>
+                <TouchableOpacity style={d.complainBtn} onPress={() => setShowComplaint(true)}>
+                  <Ionicons name="flag" size={16} color="#EF4444" />
+                  <Text style={d.complainBtnText}>Complaint</Text>
                 </TouchableOpacity>
               </View>
             )}
+            <View style={{ height: 20 }} />
           </ScrollView>
         </View>
       </View>
@@ -217,31 +205,28 @@ function BookingDetailModal({ booking, visible, onClose }) {
 }
 
 const d = StyleSheet.create({
-  overlay:      { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  sheet:        { backgroundColor: '#0D1117', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '85%', borderWidth: 1, borderColor: 'rgba(255,77,77,0.15)' },
+  overlay:      { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  sheet:        { backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, maxHeight: '88%' },
+  handle:       { width: 40, height: 4, backgroundColor: '#E5E7EB', borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
   header:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
-  bookingNum:   { fontSize: 13, fontWeight: '800', color: '#FF6B6B', marginBottom: 6 },
-  badge:        { borderRadius: 99, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1 },
-  badgeText:    { fontSize: 11, fontWeight: '800' },
-  closeBtn:     { width: 34, height: 34, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-  infoGrid:     { backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
-  infoRow:      { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.04)' },
-  infoIcon:     { fontSize: 16, width: 24 },
-  infoLabel:    { fontSize: 10, fontWeight: '700', color: '#555A66', marginBottom: 2 },
-  infoValue:    { fontSize: 13, fontWeight: '600', color: '#E8EAF0' },
-  addressBox:   { flexDirection: 'row', gap: 8, backgroundColor: 'rgba(255,77,77,0.05)', borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,77,77,0.1)' },
-  addressText:  { flex: 1, fontSize: 13, color: '#E8EAF0', lineHeight: 18 },
-  amountBox:    { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 12, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
-  amountLabel:  { fontSize: 13, color: '#9CA3AF', fontWeight: '600' },
-  amountValue:  { fontSize: 18, fontWeight: '900', color: '#4ADE80' },
-  actionsRow:   { flexDirection: 'row', gap: 10, marginBottom: 8 },
-  reviewBtn:    { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 46, backgroundColor: 'rgba(250,204,21,0.1)', borderWidth: 1, borderColor: 'rgba(250,204,21,0.25)', borderRadius: 12 },
-  reviewBtnText:{ fontSize: 13, fontWeight: '800', color: '#FACC15' },
-  complaintBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 46, backgroundColor: 'rgba(248,113,113,0.1)', borderWidth: 1, borderColor: 'rgba(248,113,113,0.25)', borderRadius: 12 },
-  complaintBtnText: { fontSize: 13, fontWeight: '800', color: '#F87171' },
+  bookingNum:   { fontSize: 13, fontWeight: '800', color: '#FF4D4D', marginBottom: 6 },
+  badge:        { borderRadius: 99, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, alignSelf: 'flex-start' },
+  badgeText:    { fontSize: 12, fontWeight: '700' },
+  closeBtn:     { width: 36, height: 36, backgroundColor: '#F5F6FA', borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  infoRow:      { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
+  infoIcon:     { fontSize: 18, marginTop: 1 },
+  infoLabel:    { fontSize: 11, fontWeight: '600', color: '#9CA3AF', marginBottom: 2 },
+  infoValue:    { fontSize: 14, fontWeight: '600', color: '#1A1D23' },
+  amountBox:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#ECFDF5', borderRadius: 14, padding: 16, marginTop: 16, marginBottom: 16 },
+  amountLabel:  { fontSize: 14, fontWeight: '600', color: '#6B7280' },
+  amountValue:  { fontSize: 22, fontWeight: '900', color: '#10B981' },
+  actionsRow:   { flexDirection: 'row', gap: 10 },
+  rateBtn:      { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 48, backgroundColor: '#FFFBEB', borderWidth: 1.5, borderColor: '#FDE68A', borderRadius: 14 },
+  rateBtnText:  { fontSize: 14, fontWeight: '800', color: '#F59E0B' },
+  complainBtn:  { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 48, backgroundColor: '#FEF2F2', borderWidth: 1.5, borderColor: '#FECACA', borderRadius: 14 },
+  complainBtnText: { fontSize: 14, fontWeight: '800', color: '#EF4444' },
 });
 
-// ── Main Screen ───────────────────────────────────────────────────────────────
 export default function BookingsScreen() {
   const { customer } = useAuth();
   const [bookings,   setBookings]   = useState([]);
@@ -261,21 +246,22 @@ export default function BookingsScreen() {
 
   useEffect(() => { fetchBookings(); }, [fetchBookings]);
 
-  const counts = bookings.reduce((acc, b) => { acc[b.bookingStatus] = (acc[b.bookingStatus] || 0) + 1; return acc; }, {});
+  const counts   = bookings.reduce((acc, b) => { acc[b.bookingStatus] = (acc[b.bookingStatus] || 0) + 1; return acc; }, {});
   const filtered = filter ? bookings.filter(b => b.bookingStatus === filter) : bookings;
 
-  if (loading) return <View style={s.loadingRoot}><ActivityIndicator size="large" color="#FF4D4D" /></View>;
+  if (loading) return <View style={s.loadingRoot}><StatusBar barStyle="dark-content" /><ActivityIndicator size="large" color="#FF4D4D" /></View>;
 
   return (
     <View style={s.root}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F5F6FA" />
       <View style={s.header}>
-        <Text style={s.headerTitle}>My Bookings 📋</Text>
-        <Text style={s.headerSub}>{bookings.length} total bookings</Text>
+        <Text style={s.headerTitle}>My Bookings</Text>
+        <Text style={s.headerSub}>{bookings.length} total</Text>
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.tabsScroll} contentContainerStyle={s.tabsContent}>
         {[
-          { key: '',           label: `All (${bookings.length})` },
+          { key: '', label: `All (${bookings.length})` },
           { key: 'Pending',    label: `🕐 Pending (${counts.Pending || 0})` },
           { key: 'Confirmed',  label: `✅ Confirmed (${counts.Confirmed || 0})` },
           { key: 'InProgress', label: `🔧 In Progress (${counts.InProgress || 0})` },
@@ -299,32 +285,26 @@ export default function BookingsScreen() {
           const c = STATUS[b.bookingStatus] || STATUS.Pending;
           return (
             <TouchableOpacity key={toStr(b._id)} style={s.card} onPress={() => setSelected(b)} activeOpacity={0.85}>
-              <View style={s.cardTop}>
-                <Text style={s.cardNum}>{b.bookingNumber}</Text>
-                <View style={[s.badge, { backgroundColor: c.bg, borderColor: c.border }]}>
-                  <Text style={[s.badgeText, { color: c.color }]}>{c.icon} {b.bookingStatus}</Text>
+              <View style={s.cardLeft}>
+                <View style={[s.cardIconWrap, { backgroundColor: c.bg }]}>
+                  <Text style={{ fontSize: 22 }}>{c.icon}</Text>
                 </View>
               </View>
               <View style={s.cardMid}>
-                <View style={s.cardRow}>
-                  <Ionicons name="construct-outline" size={13} color="#555A66" />
-                  <Text style={s.cardService} numberOfLines={1}>{b.service?.serviceName || '—'}</Text>
-                </View>
-                <View style={s.cardRow}>
-                  <Ionicons name="location-outline" size={13} color="#555A66" />
-                  <Text style={s.cardAddress} numberOfLines={1}>{b.address}</Text>
-                </View>
-              </View>
-              <View style={s.cardBottom}>
+                <Text style={s.cardNum}>{b.bookingNumber}</Text>
+                <Text style={s.cardService} numberOfLines={1}>{b.service?.serviceName || '—'}</Text>
+                <Text style={s.cardAddress} numberOfLines={1}>{b.address}</Text>
                 <Text style={s.cardDate}>{new Date(b.bookingDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</Text>
-                <Text style={s.cardAmount}>₹{Number(b.totalAmount).toLocaleString()}</Text>
               </View>
-              {b.bookingStatus === 'Completed' && (
-                <View style={s.rateHint}>
-                  <Ionicons name="star-outline" size={12} color="#FACC15" />
-                  <Text style={s.rateHintText}>Tap to rate or file complaint</Text>
+              <View style={s.cardRight}>
+                <View style={[s.badge, { backgroundColor: c.bg, borderColor: c.border }]}>
+                  <Text style={[s.badgeText, { color: c.color }]}>{b.bookingStatus}</Text>
                 </View>
-              )}
+                <Text style={s.cardAmount}>₹{Math.round(Number(b.totalAmount))}</Text>
+                {b.bookingStatus === 'Completed' && (
+                  <Text style={s.rateHint}>⭐ Rate</Text>
+                )}
+              </View>
             </TouchableOpacity>
           );
         })}
@@ -336,33 +316,32 @@ export default function BookingsScreen() {
 }
 
 const s = StyleSheet.create({
-  root:          { flex: 1, backgroundColor: '#080B0F' },
-  loadingRoot:   { flex: 1, backgroundColor: '#080B0F', justifyContent: 'center', alignItems: 'center' },
+  root:          { flex: 1, backgroundColor: '#F5F6FA' },
+  loadingRoot:   { flex: 1, backgroundColor: '#F5F6FA', justifyContent: 'center', alignItems: 'center' },
   header:        { padding: 20, paddingTop: 56 },
-  headerTitle:   { fontSize: 22, fontWeight: '900', color: '#fff', letterSpacing: -0.5 },
-  headerSub:     { fontSize: 12, color: '#555A66', marginTop: 2 },
+  headerTitle:   { fontSize: 24, fontWeight: '900', color: '#1A1D23' },
+  headerSub:     { fontSize: 13, color: '#6B7280', marginTop: 2 },
   tabsScroll:    { flexGrow: 0, marginBottom: 12 },
   tabsContent:   { paddingHorizontal: 20, gap: 8 },
-  tab:           { backgroundColor: '#0D1117', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', borderRadius: 99, paddingHorizontal: 14, paddingVertical: 7 },
+  tab:           { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#E8EBF0', borderRadius: 99, paddingHorizontal: 14, paddingVertical: 8 },
   tabActive:     { backgroundColor: '#FF4D4D', borderColor: '#FF4D4D' },
-  tabText:       { fontSize: 11, fontWeight: '700', color: '#555A66' },
+  tabText:       { fontSize: 12, fontWeight: '700', color: '#6B7280' },
   tabTextActive: { color: '#fff' },
   list:          { flex: 1, paddingHorizontal: 20 },
   emptyBox:      { alignItems: 'center', paddingVertical: 60 },
   emptyIcon:     { fontSize: 48, marginBottom: 12 },
-  emptyTitle:    { fontSize: 16, fontWeight: '800', color: '#fff' },
-  card:          { backgroundColor: '#0D1117', borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
-  cardTop:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  cardNum:       { fontSize: 12, fontWeight: '800', color: '#FF6B6B' },
-  badge:         { borderRadius: 99, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1 },
-  badgeText:     { fontSize: 11, fontWeight: '800' },
-  cardMid:       { gap: 6, marginBottom: 10 },
-  cardRow:       { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  cardService:   { fontSize: 13, fontWeight: '700', color: '#fff', flex: 1 },
-  cardAddress:   { fontSize: 12, color: '#9CA3AF', flex: 1 },
-  cardBottom:    { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.04)', paddingTop: 10 },
-  cardDate:      { fontSize: 11, color: '#555A66' },
-  cardAmount:    { fontSize: 15, fontWeight: '900', color: '#4ADE80' },
-  rateHint:      { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 },
-  rateHintText:  { fontSize: 11, color: '#FACC15', fontWeight: '600' },
+  emptyTitle:    { fontSize: 16, fontWeight: '800', color: '#1A1D23' },
+  card:          { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 18, padding: 14, marginBottom: 12, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
+  cardLeft:      { },
+  cardIconWrap:  { width: 50, height: 50, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  cardMid:       { flex: 1 },
+  cardNum:       { fontSize: 11, fontWeight: '700', color: '#FF4D4D', marginBottom: 2 },
+  cardService:   { fontSize: 14, fontWeight: '700', color: '#1A1D23', marginBottom: 2 },
+  cardAddress:   { fontSize: 12, color: '#9CA3AF', marginBottom: 2 },
+  cardDate:      { fontSize: 11, color: '#9CA3AF' },
+  cardRight:     { alignItems: 'flex-end', gap: 4 },
+  badge:         { borderRadius: 99, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1 },
+  badgeText:     { fontSize: 10, fontWeight: '700' },
+  cardAmount:    { fontSize: 15, fontWeight: '900', color: '#1A1D23' },
+  rateHint:      { fontSize: 11, color: '#F59E0B', fontWeight: '700' },
 });

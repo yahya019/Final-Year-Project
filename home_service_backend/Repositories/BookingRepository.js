@@ -164,9 +164,10 @@ class BookingRepository {
                 address: model.address,
 
                 latitude: model.latitude || null,
+
                 longitude: model.longitude || null,
 
-                availableSlotId: new ObjectId(model.availableSlotId),
+                availableSlotId: model.availableSlotId ? new ObjectId(model.availableSlotId) : null,
 
                 bookingNumber: bookingNumber,
 
@@ -385,42 +386,86 @@ class BookingRepository {
     };
 
     getBookingsByServiceman = async (servicemanId) => {
-    try {
-        const collection = await getCollection("BookingMaster");
+        try {
+            const collection = await getCollection("BookingMaster");
 
-        if (!ObjectId.isValid(servicemanId))
-            return { Status: "Fail", Result: "Invalid Serviceman Id" };
+            if (!ObjectId.isValid(servicemanId))
+                return { Status: "Fail", Result: "Invalid Serviceman Id" };
 
-        const bookings = await collection.aggregate([
-            { $match: { servicemanId: new ObjectId(servicemanId) } },
-            {
-                $lookup: {
-                    from: "Customer",
-                    localField: "customerId",
-                    foreignField: "_id",
-                    as: "customer"
-                }
-            },
-            { $unwind: { path: "$customer", preserveNullAndEmptyArrays: true } },
-            {
-                $lookup: {
-                    from: "Service",
-                    localField: "serviceId",
-                    foreignField: "_id",
-                    as: "service"
-                }
-            },
-            { $unwind: { path: "$service", preserveNullAndEmptyArrays: true } },
-            { $sort: { createdAt: -1 } }
-        ]).toArray();
+            const bookings = await collection.aggregate([
+                { $match: { servicemanId: new ObjectId(servicemanId) } },
+                {
+                    $lookup: {
+                        from: "Customer",
+                        localField: "customerId",
+                        foreignField: "_id",
+                        as: "customer"
+                    }
+                },
+                { $unwind: { path: "$customer", preserveNullAndEmptyArrays: true } },
+                {
+                    $lookup: {
+                        from: "Service",
+                        localField: "serviceId",
+                        foreignField: "_id",
+                        as: "service"
+                    }
+                },
+                { $unwind: { path: "$service", preserveNullAndEmptyArrays: true } },
+                { $sort: { createdAt: -1 } }
+            ]).toArray();
 
-        return { Status: "OK", Result: bookings };
+            return { Status: "OK", Result: bookings };
 
-    } catch (error) {
-        return { Status: "Fail", Result: error.message };
-    }
-};
+        } catch (error) {
+            return { Status: "Fail", Result: error.message };
+        }
+    };
 
+    getBookingsByCustomer = async (customerId) => {
+        try {
+            const collection = await getCollection("BookingMaster");
+
+            if (!ObjectId.isValid(customerId))
+                return { Status: "Fail", Result: "Invalid Customer Id" };
+
+            const bookings = await collection.aggregate([
+                { $match: { customerId: new ObjectId(customerId) } },
+                {
+                    $lookup: {
+                        from: "Serviceman",
+                        localField: "servicemanId",
+                        foreignField: "_id",
+                        as: "serviceman"
+                    }
+                },
+                { $unwind: { path: "$serviceman", preserveNullAndEmptyArrays: true } },
+                {
+                    $lookup: {
+                        from: "Service",
+                        localField: "serviceId",
+                        foreignField: "_id",
+                        as: "service"
+                    }
+                },
+                { $unwind: { path: "$service", preserveNullAndEmptyArrays: true } },
+                {
+                    $project: {
+                        "serviceman.password": 0,
+                        "serviceman.aadhaarNumber": 0,
+                        "serviceman.accountNumber": 0,
+                        "serviceman.ifscCode": 0,
+                    }
+                },
+                { $sort: { createdAt: -1 } }
+            ]).toArray();
+
+            return { Status: "OK", Result: bookings };
+
+        } catch (error) {
+            return { Status: "Fail", Result: error.message };
+        }
+    };
 
 
 }

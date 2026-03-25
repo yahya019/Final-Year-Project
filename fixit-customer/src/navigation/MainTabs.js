@@ -1,6 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import HomeScreen     from '../screens/home/HomeScreen';
 import BookingsScreen from '../screens/bookings/BookingsScreen';
@@ -17,20 +18,26 @@ const TABS = [
 ];
 
 export default function MainTabs() {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#0D1117',
-          borderTopColor: 'rgba(255,77,77,0.15)',
+          backgroundColor: '#ffffff',
+          borderTopColor: '#F3F4F6',
           borderTopWidth: 1,
-          height: 70,
-          paddingBottom: 14,
+          height: 60 + insets.bottom,
+          paddingBottom: insets.bottom + 8,
           paddingTop: 8,
+          shadowColor: '#000',
+          shadowOpacity: 0.06,
+          shadowRadius: 12,
+          elevation: 10,
         },
         tabBarActiveTintColor:   '#FF4D4D',
-        tabBarInactiveTintColor: '#555A66',
+        tabBarInactiveTintColor: '#9CA3AF',
         tabBarLabelStyle: { fontSize: 10, fontWeight: '700' },
         tabBarIcon: ({ focused, color }) => {
           const tab = TABS.find(t => t.name === route.name);
