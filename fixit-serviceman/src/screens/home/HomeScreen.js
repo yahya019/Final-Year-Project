@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  RefreshControl, ActivityIndicator,
+  RefreshControl, ActivityIndicator, Modal, Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -30,6 +30,7 @@ export default function HomeScreen({ navigation }) {
   const [reviews,    setReviews]    = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [selected,   setSelected]   = useState(null);
 
   const id = toStr(serviceman?._id);
 
@@ -49,7 +50,11 @@ export default function HomeScreen({ navigation }) {
     finally { setLoading(false); setRefreshing(false); }
   }, [id]);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  useEffect(() => {
+    fetchAll();
+    const interval = setInterval(fetchAll, 30000);
+    return () => clearInterval(interval);
+  }, [fetchAll]);
 
   const onRefresh = () => { setRefreshing(true); fetchAll(); };
 
@@ -90,8 +95,9 @@ export default function HomeScreen({ navigation }) {
   }
 
   return (
+    <View style={s.root}>
     <ScrollView
-      style={s.root}
+      style={{ flex: 1 }}
       contentContainerStyle={s.scroll}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FF4D4D" />}
       showsVerticalScrollIndicator={false}>
@@ -162,7 +168,7 @@ export default function HomeScreen({ navigation }) {
           </View>
         ) : (
           todayBookings.slice(0, 3).map((b, i) => (
-            <View key={toStr(b._id)} style={s.bookingCard}>
+            <TouchableOpacity key={toStr(b._id)} style={s.bookingCard} onPress={() => setSelected(b)} activeOpacity={0.85}>
               <View style={s.bookingLeft}>
                 <Text style={s.bookingNumber}>{b.bookingNumber}</Text>
                 <Text style={s.bookingCustomer}>{b.contactPerson}</Text>
@@ -170,9 +176,9 @@ export default function HomeScreen({ navigation }) {
               </View>
               <View style={s.bookingRight}>
                 {statusBadge(b.bookingStatus)}
-                <Text style={s.bookingAmount}>₹{Number(b.totalAmount).toLocaleString()}</Text>
+                <Text style={s.bookingAmount}>₹{Math.round(Number(b.totalAmount))}</Text>
               </View>
-            </View>
+            </TouchableOpacity>
           ))
         )}
       </View>
@@ -192,7 +198,7 @@ export default function HomeScreen({ navigation }) {
           </View>
         ) : (
           bookings.slice(0, 4).map((b) => (
-            <View key={toStr(b._id)} style={s.bookingCard}>
+            <TouchableOpacity key={toStr(b._id)} style={s.bookingCard} onPress={() => setSelected(b)} activeOpacity={0.85}>
               <View style={s.bookingLeft}>
                 <Text style={s.bookingNumber}>{b.bookingNumber}</Text>
                 <Text style={s.bookingCustomer}>{b.contactPerson}</Text>
@@ -202,9 +208,9 @@ export default function HomeScreen({ navigation }) {
               </View>
               <View style={s.bookingRight}>
                 {statusBadge(b.bookingStatus)}
-                <Text style={s.bookingAmount}>₹{Number(b.totalAmount).toLocaleString()}</Text>
+                <Text style={s.bookingAmount}>₹{Math.round(Number(b.totalAmount))}</Text>
               </View>
-            </View>
+            </TouchableOpacity>
           ))
         )}
       </View>
@@ -257,6 +263,78 @@ export default function HomeScreen({ navigation }) {
 
       <View style={{ height: 24 }} />
     </ScrollView>
+
+    {/* Booking Detail Modal */}
+    {selected && (
+      <Modal visible={!!selected} transparent animationType="slide" onRequestClose={() => setSelected(null)}>
+        <View style={s.modalOverlay}>
+          <View style={s.modalSheet}>
+            <View style={s.modalHandle} />
+            <View style={s.modalHeader}>
+              <View>
+                <Text style={s.modalBookingNum}>{selected.bookingNumber}</Text>
+                <View style={[s.modalBadge, { backgroundColor: STATUS_CONFIG[selected.bookingStatus]?.bg }]}>
+                  <Text style={[s.modalBadgeText, { color: STATUS_CONFIG[selected.bookingStatus]?.color }]}>
+                    {STATUS_CONFIG[selected.bookingStatus]?.icon} {selected.bookingStatus}
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity onPress={() => setSelected(null)} style={s.modalClose}>
+                <Ionicons name="close" size={20} color="#555A66" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {[
+                { icon: '👤', label: 'Customer',     value: selected.customer?.fullName || selected.contactPerson },
+                { icon: '📞', label: 'Contact',      value: selected.contactNumber },
+                { icon: '🛠️', label: 'Service',      value: selected.service?.serviceName || '—' },
+                { icon: '📅', label: 'Booking Date', value: new Date(selected.bookingDate).toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }) },
+                { icon: '💳', label: 'Payment',      value: `${selected.paymentMode} • ${selected.paymentStatus}` },
+              ].map(r => (
+                <View key={r.label} style={s.modalRow}>
+                  <Text style={s.modalRowIcon}>{r.icon}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.modalRowLabel}>{r.label}</Text>
+                    <Text style={s.modalRowValue}>{r.value}</Text>
+                  </View>
+                </View>
+              ))}
+
+              {/* Address with map link */}
+              <View style={s.modalRow}>
+                <Text style={s.modalRowIcon}>📍</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.modalRowLabel}>Address</Text>
+                  <Text style={s.modalRowValue}>{selected.address}</Text>
+                  {selected.latitude && selected.longitude && (
+                    <TouchableOpacity
+                      onPress={() => Linking.openURL(`https://www.google.com/maps?q=${selected.latitude},${selected.longitude}`)}
+                      style={s.mapBtn}>
+                      <Ionicons name="map-outline" size={14} color="#60A5FA" />
+                      <Text style={s.mapBtnText}>Open in Google Maps</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+
+              <View style={s.modalAmountBox}>
+                <Text style={s.modalAmountLabel}>Total Amount</Text>
+                <Text style={s.modalAmountValue}>₹{Math.round(Number(selected.totalAmount))}</Text>
+              </View>
+              {selected.surgeCharges > 0 && (
+                <View style={s.modalSurgeBox}>
+                  <Ionicons name="flash" size={14} color="#FB923C" />
+                  <Text style={s.modalSurgeText}>Includes surge charge: ₹{Math.round(Number(selected.surgeCharges))}</Text>
+                </View>
+              )}
+              <View style={{ height: 20 }} />
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    )}
+    </View>
   );
 }
 
@@ -331,4 +409,25 @@ const s = StyleSheet.create({
   // Logout
   logoutBtn:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: 'rgba(239,68,68,0.08)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.2)', borderRadius: 14, padding: 14, marginTop: 8 },
   logoutText:      { color: '#F87171', fontSize: 14, fontWeight: '700' },
+
+  // Booking detail modal
+  modalOverlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
+  modalSheet:      { backgroundColor: '#0D1117', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '88%', borderWidth: 1, borderColor: 'rgba(255,77,77,0.15)' },
+  modalHandle:     { width: 40, height: 4, backgroundColor: '#2A2D35', borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
+  modalHeader:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
+  modalBookingNum: { fontSize: 14, fontWeight: '800', color: '#FF6B6B', marginBottom: 8 },
+  modalBadge:      { borderRadius: 99, paddingHorizontal: 10, paddingVertical: 4, alignSelf: 'flex-start' },
+  modalBadgeText:  { fontSize: 12, fontWeight: '700' },
+  modalClose:      { width: 36, height: 36, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  modalRow:        { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.04)' },
+  modalRowIcon:    { fontSize: 18, marginTop: 1 },
+  modalRowLabel:   { fontSize: 10, fontWeight: '700', color: '#555A66', marginBottom: 3 },
+  modalRowValue:   { fontSize: 14, fontWeight: '600', color: '#E8EAF0' },
+  mapBtn:          { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, backgroundColor: 'rgba(96,165,250,0.1)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, alignSelf: 'flex-start' },
+  mapBtnText:      { fontSize: 12, fontWeight: '700', color: '#60A5FA' },
+  modalAmountBox:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'rgba(74,222,128,0.08)', borderRadius: 14, padding: 16, marginTop: 16 },
+  modalAmountLabel:{ fontSize: 14, fontWeight: '600', color: '#9CA3AF' },
+  modalAmountValue:{ fontSize: 22, fontWeight: '900', color: '#4ADE80' },
+  modalSurgeBox:   { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(251,146,60,0.08)', borderRadius: 10, padding: 10, marginTop: 8 },
+  modalSurgeText:  { fontSize: 12, color: '#FB923C', fontWeight: '600' },
 });

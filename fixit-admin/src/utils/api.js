@@ -98,7 +98,7 @@ export const getServicemanServices   = ()            => api.get('/ServicemanServ
 export const getServicesByServiceman = (id)          => api.get(`/ServicemanService/ByServiceman/${id}`);
 // PUT  /ServicemanService/ChangeStatus  { Id, Status }
 export const changeServicemanServiceStatus = (data)       => api.put('/ServicemanService/ChangeStatus', data); // { _id, status, adminRemark }
-
+export const updateServicemanServiceStatus = (data)       => api.put('/ServicemanService/Update', data); // { _id, charge, role, experience }
 // ─── CUSTOMER ─────────────────────────────────────────────────────────────────
 // GET  /Customer/List
 export const getAllCustomers          = ()            => api.get('/Customer/List');
@@ -148,7 +148,7 @@ export const getCommissions          = ()            => api.get('/Commission/Lis
 export const getCommissionByBooking  = (bookingId)   => api.get(`/Commission/Booking/${bookingId}`);
 // PUT  /Commission/Settle             { Id }
 export const settleCommission        = (data)        => api.put('/Commission/Settle', data); // { id }
-
+export const bulkSettleCommissions = (data) => api.put('/Commission/BulkSettle', data);
 // ─── CUSTOMER ADDRESS ─────────────────────────────────────────────────────────
 // GET  /CustomerAddress/List/:customerId
 export const getAddressByCustomer    = (customerId)  => api.get(`/CustomerAddress/List/${customerId}`);

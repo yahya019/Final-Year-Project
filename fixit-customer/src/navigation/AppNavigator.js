@@ -2,9 +2,16 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { View, ActivityIndicator } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+
 import { useAuth } from '../context/AuthContext';
 import AuthStack from './AuthStack';
-import MainTabs  from './MainTabs';
+import MainTabs from './MainTabs';
+import PaymentWebView from './../components/PaymentWebView';
+import PaymentSuccess from '../screens/services/PaymentSuccess';
+import PaymentFailed from '../screens/services/PaymentFailed';
+
+const Stack = createNativeStackNavigator();
 
 export default function AppNavigator() {
   const { customer, loading } = useAuth();
@@ -20,7 +27,22 @@ export default function AppNavigator() {
   return (
     <SafeAreaProvider>
       <NavigationContainer>
-        {customer ? <MainTabs /> : <AuthStack />}
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+
+          {customer ? (
+            <>
+              <Stack.Screen name="MainTabs" component={MainTabs} />
+
+              {/* ✅ ADD PAYMENT SCREEN HERE */}
+              <Stack.Screen name="PaymentWebView" component={PaymentWebView} />
+              <Stack.Screen name="PaymentSuccess" component={PaymentSuccess} />
+              <Stack.Screen name="PaymentFailed" component={PaymentFailed} />
+            </>
+          ) : (
+            <Stack.Screen name="AuthStack" component={AuthStack} />
+          )}
+
+        </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>
   );

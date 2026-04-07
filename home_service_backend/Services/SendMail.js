@@ -159,7 +159,131 @@ const forgotPasswordTemplate = (Name, newPassword, toEmail) => {
         </div>
         `
     };
+    
+    
 };
+const forgotPasswordCustomerTemplate = (name, newPassword, toEmail) => {
+        return {
+            from: '"FixIt Support" <fixii.home.services@gmail.com>',
+            to: toEmail,
+            subject: "FixIt - Reset Your Password",
+            html: `
+        <div style="background:#f4f6f9;padding:30px;font-family:Arial;">
+            <table align="center" width="600" style="background:#fff;border-radius:10px;overflow:hidden;">
+                
+                <!-- Header -->
+                <tr>
+                    <td style="background:#4CAF50;padding:20px;text-align:center;">
+                        <h2 style="color:#fff;margin:0;">FixIt</h2>
+                    </td>
+                </tr>
+
+                <!-- Body -->
+                <tr>
+                    <td style="padding:30px;">
+                        <h3>Hello ${name},</h3>
+
+                        <p style="color:#555;">
+                            We received a request to reset your password.
+                        </p>
+
+                        <p style="color:#555;">
+                            Here is your new password:
+                        </p>
+
+                        <div style="background:#e8f5e9;padding:15px;border-radius:6px;text-align:center;font-size:18px;font-weight:bold;color:#2e7d32;">
+                            ${newPassword}
+                        </div>
+
+                        <p style="margin-top:20px;color:#777;">
+                            Please login and change your password immediately for security.
+                        </p>
+
+                        <div style="text-align:center;margin:30px 0;">
+                            <a href="#" style="background:#4CAF50;color:#fff;padding:12px 25px;border-radius:5px;text-decoration:none;">
+                                Login Now
+                            </a>
+                        </div>
+
+                        <p style="font-size:12px;color:#999;">
+                            If you didn’t request this, please ignore this email.
+                        </p>
+                    </td>
+                </tr>
+
+                <!-- Footer -->
+                <tr>
+                    <td style="text-align:center;padding:15px;font-size:12px;color:#999;">
+                        © ${new Date().getFullYear()} FixIt
+                    </td>
+                </tr>
+
+            </table>
+        </div>
+        `
+        };
+    };
+    const forgotPasswordServicemanTemplate = (name, newPassword, toEmail) => {
+        return {
+            from: '"FixIt Partner Support" <fixii.home.services@gmail.com>',
+            to: toEmail,
+            subject: "FixIt Partner - Password Reset",
+            html: `
+        <div style="background:#f4f6f9;padding:30px;font-family:Arial;">
+            <table align="center" width="600" style="background:#fff;border-radius:10px;overflow:hidden;">
+                
+                <!-- Header -->
+                <tr>
+                    <td style="background:#FF4D4D;padding:20px;text-align:center;">
+                        <h2 style="color:#fff;margin:0;">FixIt Partner Panel</h2>
+                    </td>
+                </tr>
+
+                <!-- Body -->
+                <tr>
+                    <td style="padding:30px;">
+                        <h3>Hello ${name},</h3>
+
+                        <p style="color:#555;">
+                            Your serviceman account password has been reset.
+                        </p>
+
+                        <p style="color:#555;">
+                            Use the following temporary password to login:
+                        </p>
+
+                        <div style="background:#ffecec;padding:15px;border-radius:6px;text-align:center;font-size:18px;font-weight:bold;color:#c62828;">
+                            ${newPassword}
+                        </div>
+
+                        <p style="margin-top:20px;color:#777;">
+                            ⚠ You must change your password after logging in to continue using your account.
+                        </p>
+
+                        <div style="text-align:center;margin:30px 0;">
+                            <a href="#" style="background:#FF4D4D;color:#fff;padding:12px 25px;border-radius:5px;text-decoration:none;">
+                                Login to Dashboard
+                            </a>
+                        </div>
+
+                        <p style="font-size:12px;color:#999;">
+                            If this was not you, contact support immediately.
+                        </p>
+                    </td>
+                </tr>
+
+                <!-- Footer -->
+                <tr>
+                    <td style="text-align:center;padding:15px;font-size:12px;color:#999;">
+                        © ${new Date().getFullYear()} FixIt Partner
+                    </td>
+                </tr>
+
+            </table>
+        </div>
+        `
+        };
+    };
 
 
-module.exports = { sendMail, createAccountTemplate, forgotPasswordTemplate };
+module.exports = { sendMail, createAccountTemplate, forgotPasswordTemplate , forgotPasswordCustomerTemplate, forgotPasswordServicemanTemplate };

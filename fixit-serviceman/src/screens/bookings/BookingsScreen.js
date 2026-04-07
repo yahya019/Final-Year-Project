@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  RefreshControl, ActivityIndicator, Modal, Alert, TextInput,
+  RefreshControl, ActivityIndicator, Modal, Alert, TextInput, Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -23,7 +23,7 @@ const STATUS = {
 };
 
 const NEXT_STATUS = {
-  Pending:    ['Confirmed', 'Cancelled'],
+  Pending:    ['Cancelled'],
   Confirmed:  ['InProgress', 'Cancelled'],
   InProgress: ['Completed'],
 };
@@ -148,6 +148,15 @@ function BookingDetailModal({ booking, visible, onClose, onStatusUpdate }) {
                 <Text style={d.addressLabel}>SERVICE ADDRESS</Text>
               </View>
               <Text style={d.addressText}>{booking.address}</Text>
+              {booking.latitude && booking.longitude && (
+                <TouchableOpacity
+                  style={d.mapBtn}
+                  onPress={() => Linking.openURL(`https://www.google.com/maps?q=${booking.latitude},${booking.longitude}`)}
+                  activeOpacity={0.8}>
+                  <Ionicons name="map-outline" size={14} color="#60A5FA" />
+                  <Text style={d.mapBtnText}>Open in Google Maps</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* Amount */}
@@ -230,6 +239,8 @@ const d = StyleSheet.create({
   addressHeader:{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
   addressLabel: { fontSize: 10, fontWeight: '700', color: '#FF6B6B', letterSpacing: 1 },
   addressText:  { fontSize: 13, color: '#E8EAF0', lineHeight: 18 },
+  mapBtn:       { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, backgroundColor: 'rgba(96,165,250,0.1)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7, alignSelf: 'flex-start', borderWidth: 1, borderColor: 'rgba(96,165,250,0.2)' },
+  mapBtnText:   { fontSize: 12, fontWeight: '700', color: '#60A5FA' },
   amountBox:    { backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 12, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
   amountRow:    { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   amountLabel:  { fontSize: 13, color: '#9CA3AF' },
@@ -268,7 +279,11 @@ export default function BookingsScreen() {
     finally { setLoading(false); setRefreshing(false); }
   }, [id]);
 
-  useEffect(() => { fetchBookings(); }, [fetchBookings]);
+  useEffect(() => {
+    fetchBookings();
+    const interval = setInterval(fetchBookings, 30000);
+    return () => clearInterval(interval);
+  }, [fetchBookings]);
 
   const onRefresh = () => { setRefreshing(true); fetchBookings(); };
 
@@ -278,23 +293,46 @@ export default function BookingsScreen() {
     ));
   };
 
+  // Auto-confirm when serviceman opens a Pending booking
+  const handleSelectBooking = async (b) => {
+    if (b.bookingStatus === 'Pending') {
+      try {
+        await updateBookingStatus({ bookingId: toStr(b._id), bookingStatus: 'Confirmed' });
+        const updated = { ...b, bookingStatus: 'Confirmed' };
+        setBookings(prev => prev.map(x => toStr(x._id) === toStr(b._id) ? updated : x));
+        setSelected(updated);
+      } catch (_) { setSelected(b); }
+    } else {
+      setSelected(b);
+    }
+  };
+
   const counts = bookings.reduce((acc, b) => {
     acc[b.bookingStatus] = (acc[b.bookingStatus] || 0) + 1;
     return acc;
   }, {});
 
-  const filtered = bookings.filter(b => {
-    const matchFilter = !filter || b.bookingStatus === filter;
-    const matchSearch = !search ||
-      b.bookingNumber?.toLowerCase().includes(search.toLowerCase()) ||
-      b.contactPerson?.toLowerCase().includes(search.toLowerCase()) ||
-      b.address?.toLowerCase().includes(search.toLowerCase());
-    return matchFilter && matchSearch;
-  });
+  // FIFO sort — oldest first, but Completed goes to bottom
+  const filtered = bookings
+    .filter(b => {
+      const matchFilter = !filter || b.bookingStatus === filter;
+      const matchSearch = !search ||
+        b.bookingNumber?.toLowerCase().includes(search.toLowerCase()) ||
+        b.contactPerson?.toLowerCase().includes(search.toLowerCase()) ||
+        b.address?.toLowerCase().includes(search.toLowerCase());
+      return matchFilter && matchSearch;
+    })
+    .sort((a, b) => {
+      const aCompleted = a.bookingStatus === 'Completed' || a.bookingStatus === 'Cancelled';
+      const bCompleted = b.bookingStatus === 'Completed' || b.bookingStatus === 'Cancelled';
+      if (aCompleted && !bCompleted) return 1;
+      if (!aCompleted && bCompleted) return -1;
+      return new Date(a.createdAt) - new Date(b.createdAt); // FIFO oldest first
+    });
 
-  const totalRevenue = bookings
+  const totalRevenue = Math.round(bookings
     .filter(b => b.bookingStatus === 'Completed')
-    .reduce((s, b) => s + Number(b.totalAmount || 0), 0);
+    .reduce((s, b) => s + Number(b.totalAmount || 0), 0));
 
   if (loading) {
     return (
@@ -340,11 +378,11 @@ export default function BookingsScreen() {
         contentContainerStyle={s.tabsContent}>
         {[
           { key: '',           label: `All (${bookings.length})` },
-          { key: 'Pending',    label: `Pending (${counts.Pending || 0})` },
-          { key: 'Confirmed',  label: `Confirmed (${counts.Confirmed || 0})` },
-          { key: 'InProgress', label: `In Progress (${counts.InProgress || 0})` },
-          { key: 'Completed',  label: `Completed (${counts.Completed || 0})` },
-          { key: 'Cancelled',  label: `Cancelled (${counts.Cancelled || 0})` },
+          { key: 'Pending',    label: `⏳ Pending (${counts.Pending || 0})` },
+          { key: 'Confirmed',  label: `✅ Confirmed (${counts.Confirmed || 0})` },
+          { key: 'InProgress', label: `🔧 In Progress (${counts.InProgress || 0})` },
+          { key: 'Completed',  label: `🎉 Completed (${counts.Completed || 0})` },
+          { key: 'Cancelled',  label: `❌ Cancelled (${counts.Cancelled || 0})` },
         ].map(tab => (
           <TouchableOpacity
             key={tab.key}
@@ -374,7 +412,7 @@ export default function BookingsScreen() {
             <TouchableOpacity
               key={toStr(b._id)}
               style={s.card}
-              onPress={() => setSelected(b)}
+              onPress={() => handleSelectBooking(b)}
               activeOpacity={0.85}>
               {/* Top row */}
               <View style={s.cardTop}>

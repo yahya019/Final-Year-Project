@@ -232,65 +232,8 @@ class BookingRepository {
 
     };
 
-    /* ================= UPDATE BOOKING STATUS ================= */
-
+    /* ================= UPDATE BOOKING STATUS ================= */  
     updateBookingStatus = async (bookingId, status) => {
-
-        try {
-
-            const bookingCollection = await getCollection("BookingMaster");
-
-            if (!ObjectId.isValid(bookingId))
-                return { Status: "Fail", Result: "Invalid Booking Id" };
-
-            const booking = await bookingCollection.findOne({
-                _id: new ObjectId(bookingId)
-            });
-
-            if (!booking)
-                return { Status: "Fail", Result: "Booking not found" };
-
-            await bookingCollection.updateOne(
-                { _id: new ObjectId(bookingId) },
-                {
-                    $set: {
-                        bookingStatus: status
-                    }
-                }
-            );
-
-            return {
-                Status: "OK",
-                Result: "Booking status updated successfully"
-            };
-
-        } catch (error) {
-
-            return {
-                Status: "Fail",
-                Result: error.message
-            };
-
-        }
-
-        if (status === "Completed") {
-            const commissionCollection = await getCollection("Commission");
-            const existing = await commissionCollection.findOne({ bookingId: new ObjectId(bookingId) });
-            if (!existing) {
-                await commissionCollection.insertOne({
-                    bookingId: new ObjectId(bookingId),
-                    totalAmount: booking.totalAmount,
-                    commissionPercentage: 15,
-                    commissionAmount: booking.totalAmount * 0.15,
-                    servicemanEarning: booking.totalAmount * 0.85,
-                    settlementStatus: "Pending",
-                    settledAt: null,
-                    createdAt: new Date()
-                });
-            }
-        }
-
-    }; updateBookingStatus = async (bookingId, status) => {
         try {
             const bookingCollection = await getCollection("BookingMaster");
 

@@ -1,7 +1,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BASE_URL = 'http://10.244.83.126:3000';
+const BASE_URL = 'http://10.137.238.126:3000';
 
 const api = axios.create({ baseURL: BASE_URL });
 
@@ -14,6 +14,7 @@ api.interceptors.request.use(async (config) => {
 export const servicemanLogin    = (data) => api.post('/Serviceman/SignIn', data);
 export const servicemanRegister = (data) => api.post('/Serviceman/Register', data);
 export const changePassword     = (data) => api.put('/Serviceman/ChangePassword', data);
+export const forgotPassword     = (data) => api.post('/Serviceman/ForgotPassword', data);
 export const getProfile         = (id)   => api.get(`/Serviceman/Profile/${id}`);
 export const updateProfile      = (data) => api.put('/Serviceman/UpdateProfile', data);
 export const getServiceCategories  = ()     => api.get('/ServiceCategory/List');

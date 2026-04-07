@@ -56,12 +56,17 @@ export default function ServiceCategoryPage() {
   const [search, setSearch]                 = useState('');
   const fileRef = useRef();
 
-  useEffect(() => { fetchCategories(); }, []);
+  useEffect(() => {
+    fetchCategories();
+    const interval = setInterval(fetchCategories, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   // imageUrl is a server path like /Content/Images/xxx.png
+  const BASE = process.env.REACT_APP_API_URL || 'http://localhost:3000';
   const imgSrc = (cat) => {
     if (cat.base64Data && cat.base64Data.startsWith('data:image')) return cat.base64Data;
-    if (cat.imageUrl) return `http://localhost:3000${cat.imageUrl}`;
+    if (cat.imageUrl) return `${BASE}${cat.imageUrl}`;
     return null;
   };
 

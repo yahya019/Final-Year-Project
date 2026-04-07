@@ -125,6 +125,16 @@ class CommissionController {
     }
 };
 
+bulkSettle = async (req, res) => {
+    try {
+        const { ids, settledAt } = req.body;
+        if (!ids || !ids.length) return res.status(400).json({ Status: "Fail", Result: "No ids provided" });
+        const result = await CommissionRepository.bulkSettle(ids, settledAt || new Date());
+        return res.status(200).json(result);
+    } catch (error) {
+        return res.status(500).json({ Status: "Fail", Result: error.message });
+    }
+};
 }
 
 module.exports = new CommissionController();

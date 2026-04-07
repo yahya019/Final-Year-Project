@@ -1,6 +1,7 @@
 const { ObjectId } = require("mongodb");
 const { getCollection } = require("./dbConfig");
 const bcrypt = require("bcrypt");
+const { sendMail, forgotPasswordCustomerTemplate  } = require("../Services/SendMail");
 
 class CustomerRepository {
 
@@ -184,63 +185,45 @@ signIn = async (contactNumber, password) => {
 
     };
 
-    forgotPassword = async (email) => {
-
-    try {
-
-        const collection = await getCollection("Customer");
-
-        const customer = await collection.findOne({ email: email });
-
-        if (!customer)
-            return { Status: "Fail", Result: "Email not registered" };
-
-        /* Generate new password */
-
-        const newPassword = Math.random().toString(36).slice(-8);
-
-        const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-        await collection.updateOne(
-            { email: email },
-            {
-                $set: {
-                    password: hashedPassword
-                }
-            }
-        );
-
-        /* Send Mail */
-
-        const template = forgotPasswordTemplate(
-            customer.fullName,
-            newPassword,
-            customer.email
-        );
-
-        await sendMail(
-            customer.email,
-            "FixIt - Customer Password Reset",
-            template
-        );
-
-        return {
-            Status: "OK",
-            Result: "New password sent to registered email"
-        };
-
-    }
-    catch (error) {
-
-        return {
-            Status: "Fail",
-            Result: error.message
-        };
-
-    }
-
-};
-
+forgotPassword = async (email) => {
+        try {
+            const collection = await getCollection("Customer");
+ 
+            const customer = await collection.findOne({ email: email.toLowerCase().trim() });
+ 
+            if (!customer)
+                return { Status: "Fail", Result: "No account found with this email address" };
+ 
+            // Generate new random password
+            const newPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-4).toUpperCase();
+ 
+            const hashedPassword = await bcrypt.hash(newPassword, 10);
+ 
+            await collection.updateOne(
+                { email: customer.email },
+                { $set: { password: hashedPassword } }
+            );
+ 
+            // Send email with new password
+            const template = forgotPasswordCustomerTemplate(
+                customer.fullName,
+                newPassword,
+                customer.email
+            );
+ 
+            await sendMail(
+                customer.email,
+                "FixIt - Password Reset",
+                template
+            );
+ 
+            return { Status: "OK", Result: "New password sent to your registered email" };
+ 
+        } catch (error) {
+            return { Status: "Fail", Result: error.message };
+        }
+    };
+ 
 }
 
 module.exports = new CustomerRepository();

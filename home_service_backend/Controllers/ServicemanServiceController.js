@@ -25,7 +25,7 @@ class ServicemanServiceController {
                     Status: "Fail",
                     Result: "Category Id is required"
                 });
-                
+
             if (!charge)
                 return res.status(400).json({ Status: "Fail", Result: "Charge is required" });
 
@@ -55,15 +55,42 @@ class ServicemanServiceController {
 
     };
 
-servicesByService = async (req, res) => {
-    try {
-        const { serviceId } = req.params;
-        const result = await ServicemanServiceRepository.servicesByService(serviceId);
-        return res.status(200).json(result);
-    } catch (error) {
-        return res.status(500).json({ Status: "Fail", Result: error.message });
-    }
-};
+    updateService = async (req, res) => {
+        try {
+            const { id, charge, role, experience } = req.body;
+
+            if (!id)
+                return res.status(400).json({ Status: "Fail", Result: "Service record Id required" });
+
+            if (!charge || isNaN(Number(charge)) || Number(charge) <= 0)
+                return res.status(400).json({ Status: "Fail", Result: "Valid charge amount is required" });
+
+            const result = await ServicemanServiceRepository.updateService(id, {
+                charge: Number(charge),
+                role: role || '',
+                experience: experience || '',
+            });
+
+            if (result.Status === "OK")
+                return res.status(200).json(result);
+
+            return res.status(400).json(result);
+
+        } catch (error) {
+            return res.status(500).json({ Status: "Fail", Result: error.message });
+        }
+    };
+
+
+    servicesByService = async (req, res) => {
+        try {
+            const { serviceId } = req.params;
+            const result = await ServicemanServiceRepository.servicesByService(serviceId);
+            return res.status(200).json(result);
+        } catch (error) {
+            return res.status(500).json({ Status: "Fail", Result: error.message });
+        }
+    };
 
     servicemanServices = async (req, res) => {
 

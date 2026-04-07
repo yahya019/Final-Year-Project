@@ -103,6 +103,18 @@ deleteSlot = async (req, res) => {
     }
 };
 
+reduceSlot = async (req, res) => {
+    try {
+        const { slotId, totalSlots } = req.body;
+        if (!slotId) return res.status(400).json({ Status: "Fail", Result: "Slot Id required" });
+        const result = await ServicemanSlotRepository.reduceSlot(slotId, totalSlots);
+        return res.status(200).json(result);
+    } catch (error) {
+        return res.status(500).json({ Status: "Fail", Result: error.message });
+    }
+};
+
+
 }
 
 module.exports = new ServicemanSlotController();

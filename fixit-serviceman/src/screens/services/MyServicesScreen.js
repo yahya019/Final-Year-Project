@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
-import { getMyServices, getServiceCategories, getServicesByCategory, applyForService } from '../../utils/api';
+import { getMyServices, getServiceCategories, getServicesByCategory, applyForService, updateService } from '../../utils/api';
 
 const toStr = (id) => {
   if (!id) return '';
@@ -229,6 +229,144 @@ const a = StyleSheet.create({
   applyBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
 });
 
+function EditModal({ visible, onClose, onSuccess, service }) {
+  const [charge,     setCharge]     = useState('');
+  const [role,       setRole]       = useState('');
+  const [experience, setExperience] = useState('');
+  const [loading,    setLoading]    = useState(false);
+  const [error,      setError]      = useState('');
+
+  useEffect(() => {
+    if (visible && service) {
+      setCharge(String(service.charge || ''));
+      setRole(service.role || '');
+      setExperience(service.experience || '');
+      setError('');
+    }
+  }, [visible, service]);
+
+  const handleUpdate = async () => {
+    setError('');
+    if (!charge.trim()) return setError('Charge is required');
+    if (isNaN(Number(charge)) || Number(charge) <= 0) return setError('Enter a valid charge amount');
+    if (service?.service?.maximumPrice && Number(charge) > service.service.maximumPrice)
+      return setError(`Charge cannot exceed ₹${service.service.maximumPrice}`);
+    setLoading(true);
+    try {
+      const res = await updateService({
+        id: toStr(service._id),
+        charge: Number(charge),
+        role: role.trim(),
+        experience: experience.trim(),
+      });
+      if (res.data.Status === 'OK') { onSuccess(); onClose(); }
+      else setError(res.data.Result);
+    } catch (err) {
+      setError(err?.response?.data?.Result || 'Failed to update');
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView style={e.overlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <View style={e.sheet}>
+          <View style={e.header}>
+            <Text style={e.title}>✏️ Edit Service</Text>
+            <TouchableOpacity onPress={onClose}>
+              <Ionicons name="close" size={22} color="#555A66" />
+            </TouchableOpacity>
+          </View>
+
+          {service && (
+            <View style={e.infoBox}>
+              <Text style={e.infoName}>{service.service?.serviceName || '—'}</Text>
+              <Text style={e.infoCat}>{service.category?.name || '—'}</Text>
+              {service.service?.maximumPrice && (
+                <Text style={e.infoMax}>Max allowed: ₹{service.service.maximumPrice}</Text>
+              )}
+            </View>
+          )}
+
+          {error ? (
+            <View style={e.errorBox}>
+              <Ionicons name="alert-circle" size={14} color="#F87171" />
+              <Text style={e.errorText}>{error}</Text>
+            </View>
+          ) : null}
+
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <Text style={e.label}>YOUR CHARGE (₹) *</Text>
+            <View style={e.inputWrap}>
+              <Text style={e.rupee}>₹</Text>
+              <TextInput
+                style={e.input}
+                placeholder="Your service charge"
+                placeholderTextColor="#555A66"
+                value={charge}
+                onChangeText={setCharge}
+                keyboardType="number-pad"
+              />
+            </View>
+
+            <Text style={e.label}>YOUR ROLE (optional)</Text>
+            <View style={e.inputWrap}>
+              <Ionicons name="person-outline" size={16} color="#555A66" style={{ marginRight: 10 }} />
+              <TextInput
+                style={e.input}
+                placeholder="e.g. Senior Plumber"
+                placeholderTextColor="#555A66"
+                value={role}
+                onChangeText={setRole}
+              />
+            </View>
+
+            <Text style={e.label}>EXPERIENCE (optional)</Text>
+            <View style={[e.inputWrap, { height: 80, alignItems: 'flex-start', paddingTop: 12 }]}>
+              <Ionicons name="briefcase-outline" size={16} color="#555A66" style={{ marginRight: 10, marginTop: 2 }} />
+              <TextInput
+                style={[e.input, { textAlignVertical: 'top' }]}
+                placeholder="e.g. 5 years of experience..."
+                placeholderTextColor="#555A66"
+                value={experience}
+                onChangeText={setExperience}
+                multiline
+                numberOfLines={3}
+              />
+            </View>
+
+            <TouchableOpacity style={e.saveBtn} onPress={handleUpdate} disabled={loading}>
+              {loading
+                ? <ActivityIndicator color="#fff" />
+                : <><Ionicons name="checkmark-circle-outline" size={18} color="#fff" /><Text style={e.saveBtnText}>Save Changes</Text></>
+              }
+            </TouchableOpacity>
+            <View style={{ height: 20 }} />
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+const e = StyleSheet.create({
+  overlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
+  sheet:     { backgroundColor: '#0D1117', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '85%', borderWidth: 1, borderColor: 'rgba(255,77,77,0.15)' },
+  header:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  title:     { fontSize: 18, fontWeight: '900', color: '#fff' },
+  infoBox:   { backgroundColor: 'rgba(255,77,77,0.06)', borderWidth: 1, borderColor: 'rgba(255,77,77,0.15)', borderRadius: 12, padding: 14, marginBottom: 16 },
+  infoName:  { fontSize: 15, fontWeight: '800', color: '#FF6B6B', marginBottom: 2 },
+  infoCat:   { fontSize: 12, color: '#9CA3AF', marginBottom: 4 },
+  infoMax:   { fontSize: 11, fontWeight: '700', color: '#4ADE80' },
+  errorBox:  { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#2A1222', borderRadius: 8, padding: 12, marginBottom: 16 },
+  errorText: { color: '#F87171', fontSize: 12, flex: 1 },
+  label:     { fontSize: 10, fontWeight: '700', color: '#555A66', letterSpacing: 1, marginBottom: 8 },
+  inputWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#080B0F', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.08)', borderRadius: 12, paddingHorizontal: 14, height: 50, marginBottom: 16 },
+  rupee:     { fontSize: 18, fontWeight: '700', color: '#4ADE80', marginRight: 8 },
+  input:     { flex: 1, color: '#E8EAF0', fontSize: 14 },
+  saveBtn:   { height: 52, backgroundColor: '#FF4D4D', borderRadius: 14, justifyContent: 'center', alignItems: 'center', flexDirection: 'row', gap: 8, shadowColor: '#FF4D4D', shadowOpacity: 0.4, shadowRadius: 10, elevation: 5 },
+  saveBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
+});
+
 export default function MyServicesScreen() {
   const { serviceman } = useAuth();
   const [services,   setServices]   = useState([]);
@@ -236,6 +374,7 @@ export default function MyServicesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showModal,  setShowModal]  = useState(false);
   const [filter,     setFilter]     = useState('');
+  const [editService, setEditService] = useState(null);
   const id = toStr(serviceman?._id);
 
   const fetchServices = useCallback(async () => {
@@ -349,6 +488,10 @@ export default function MyServicesScreen() {
                   <Text style={s.pendingText}>Waiting for admin approval</Text>
                 </View>
               )}
+              <TouchableOpacity style={s.editBtn} onPress={() => setEditService(svc)} activeOpacity={0.8}>
+                <Ionicons name="pencil-outline" size={13} color="#FF4D4D" />
+                <Text style={s.editBtnText}>Edit</Text>
+              </TouchableOpacity>
             </View>
           );
         })}
@@ -356,6 +499,12 @@ export default function MyServicesScreen() {
       </ScrollView>
 
       <ApplyModal visible={showModal} onClose={() => setShowModal(false)} onSuccess={fetchServices} servicemanId={id} />
+      <EditModal
+        visible={!!editService}
+        onClose={() => setEditService(null)}
+        onSuccess={fetchServices}
+        service={editService}
+      />
     </View>
   );
 }
@@ -401,4 +550,6 @@ const s = StyleSheet.create({
   remarkText: { fontSize: 12, color: '#E8EAF0' },
   pendingBox: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   pendingText: { fontSize: 11, color: '#FACC15', fontWeight: '600' },
+  editBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-end', marginTop: 10, backgroundColor: 'rgba(255,77,77,0.08)', borderWidth: 1, borderColor: 'rgba(255,77,77,0.2)', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
+  editBtnText: { fontSize: 11, fontWeight: '700', color: '#FF4D4D' },
 });

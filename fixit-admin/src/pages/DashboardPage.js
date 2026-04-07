@@ -83,27 +83,51 @@ export default function DashboardPage() {
   }));
 
   // ── Monthly bookings chart (last 6 months) ───────────────────────────────
-  const monthlyData = (() => {
-    const months = [];
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date();
-      d.setMonth(d.getMonth() - i);
-      const label = d.toLocaleDateString('en-IN', { month: 'short' });
-      const count = bookings.filter(b => {
-        if (!b.createdAt) return false;
-        const bd = new Date(b.createdAt);
-        return bd.getMonth() === d.getMonth() && bd.getFullYear() === d.getFullYear();
-      }).length;
-      const revenue = bookings.filter(b => {
-        if (!b.createdAt || b.bookingStatus !== 'Completed') return false;
-        const bd = new Date(b.createdAt);
-        return bd.getMonth() === d.getMonth() && bd.getFullYear() === d.getFullYear();
-      }).reduce((s, b) => s + Number(b.totalAmount || 0), 0);
-      months.push({ name: label, bookings: count, revenue });
-    }
-    return months;
-  })();
+const monthlyData = (() => {
+  const months = [];
 
+  // Step 1: Generate last 6 months properly
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(1); // prevent overflow bug
+    d.setMonth(d.getMonth() - i);
+
+    months.push({
+      key: d.getTime(), // 🔥 numeric sort key
+      year: d.getFullYear(),
+      month: d.getMonth(),
+      name: d.toLocaleDateString('en-IN', {
+        month: 'short',
+        year: '2-digit'
+      }),
+      bookings: 0,
+      revenue: 0
+    });
+  }
+
+  // Step 2: Fill data (single pass)
+  bookings.forEach(b => {
+    if (!b.createdAt) return;
+
+    const bd = new Date(b.createdAt);
+
+    months.forEach(m => {
+      if (
+        bd.getMonth() === m.month &&
+        bd.getFullYear() === m.year
+      ) {
+        m.bookings++;
+
+        if (b.bookingStatus === 'Completed') {
+          m.revenue += Number(b.totalAmount || 0);
+        }
+      }
+    });
+  });
+
+  // Step 3: Ensure correct order (just in case)
+  return months.sort((a, b) => a.key - b.key);
+})();
   // ── Recent bookings ──────────────────────────────────────────────────────
   const recentBookings = [...bookings].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 6);
 

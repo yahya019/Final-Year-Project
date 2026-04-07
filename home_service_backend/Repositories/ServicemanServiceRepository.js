@@ -6,66 +6,66 @@ class ServicemanServiceRepository {
     /* ================= APPLY SERVICE ================= */
 
     applyService = async (model) => {
-    try {
-        const collection = await getCollection("ServicemanService");
+        try {
+            const collection = await getCollection("ServicemanService");
 
-        // ── CHECK WORKER IS APPROVED ──
-        const servicemanCollection = await getCollection("Serviceman");
-        const serviceman = await servicemanCollection.findOne({
-            _id: new ObjectId(model.servicemanId)
-        });
+            // ── CHECK WORKER IS APPROVED ──
+            const servicemanCollection = await getCollection("Serviceman");
+            const serviceman = await servicemanCollection.findOne({
+                _id: new ObjectId(model.servicemanId)
+            });
 
-        if (!serviceman)
-            return { Status: "Fail", Result: "Serviceman not found" };
+            if (!serviceman)
+                return { Status: "Fail", Result: "Serviceman not found" };
 
-        if (serviceman.status !== "Approved")
-            return { Status: "Fail", Result: "Only approved servicemen can apply for services" };
+            if (serviceman.status !== "Approved")
+                return { Status: "Fail", Result: "Only approved servicemen can apply for services" };
 
-        // ── CHECK DUPLICATE ──
-        const exist = await collection.findOne({
-            servicemanId: new ObjectId(model.servicemanId),
-            serviceId: new ObjectId(model.serviceId)
-        });
+            // ── CHECK DUPLICATE ──
+            const exist = await collection.findOne({
+                servicemanId: new ObjectId(model.servicemanId),
+                serviceId: new ObjectId(model.serviceId)
+            });
 
-        if (exist)
-            return { Status: "Conflict", Result: "Service already applied" };
+            if (exist)
+                return { Status: "Conflict", Result: "Service already applied" };
 
-        // ── CHECK CHARGE vs MAX PRICE ──
-        const serviceCollection = await getCollection("Service");
-        const service = await serviceCollection.findOne({
-            _id: new ObjectId(model.serviceId)
-        });
+            // ── CHECK CHARGE vs MAX PRICE ──
+            const serviceCollection = await getCollection("Service");
+            const service = await serviceCollection.findOne({
+                _id: new ObjectId(model.serviceId)
+            });
 
-        if (service && Number(model.charge) > service.maximumPrice)
-            return { Status: "Fail", Result: `Charge cannot exceed maximum price of ₹${service.maximumPrice}` };
+            if (service && Number(model.charge) > service.maximumPrice)
+                return { Status: "Fail", Result: `Charge cannot exceed maximum price of ₹${service.maximumPrice}` };
 
-        // ── INSERT ──
-        const data = {
-            servicemanId: new ObjectId(model.servicemanId),
-            serviceId:    new ObjectId(model.serviceId),
-            categoryId:   new ObjectId(model.categoryId),
-            role:         model.role        || null,
-            description:  model.description || null,
-            charge:       Number(model.charge) || 0,
-            status:       "Pending",
-            adminRemark:  null,
-            createdAt:    new Date()
-        };
+            // ── INSERT ──
+            const data = {
+                servicemanId: new ObjectId(model.servicemanId),
+                serviceId: new ObjectId(model.serviceId),
+                categoryId: new ObjectId(model.categoryId),
+                role: model.role || null,
+                description: model.description || null,
+                charge: Number(model.charge) || 0,
+                status: "Pending",
+                adminRemark: null,
+                createdAt: new Date()
+            };
 
-        await collection.insertOne(data);
+            await collection.insertOne(data);
 
-        return {
-            Status: "OK",
-            Result: "Service request submitted successfully"
-        };
+            return {
+                Status: "OK",
+                Result: "Service request submitted successfully"
+            };
 
-    } catch (error) {
-        return {
-            Status: "Fail",
-            Result: error.message
-        };
-    }
-};
+        } catch (error) {
+            return {
+                Status: "Fail",
+                Result: error.message
+            };
+        }
+    };
 
     /* ================= SERVICEMAN SERVICES ================= */
 
@@ -213,29 +213,60 @@ class ServicemanServiceRepository {
     };
 
     servicesByService = async (serviceId) => {
+        try {
+            const collection = await getCollection("ServicemanService");
+
+            const data = await collection.aggregate([
+                {
+                    $match: {
+                        serviceId: new ObjectId(serviceId),
+                        status: "Approved"
+                    }
+                },
+                {
+                    $lookup: {
+                        from: "Serviceman",
+                        localField: "servicemanId",
+                        foreignField: "_id",
+                        as: "serviceman"
+                    }
+                },
+                { $unwind: "$serviceman" },
+            ]).toArray();
+
+            return { Status: "OK", Result: data };
+
+        } catch (error) {
+            return { Status: "Fail", Result: error.message };
+        }
+    };
+
+    updateService = async (id, updates) => {
     try {
         const collection = await getCollection("ServicemanService");
-
-        const data = await collection.aggregate([
+ 
+        if (!ObjectId.isValid(id))
+            return { Status: "Fail", Result: "Invalid Id" };
+ 
+        const existing = await collection.findOne({ _id: new ObjectId(id) });
+        if (!existing)
+            return { Status: "Fail", Result: "Service record not found" };
+ 
+        await collection.updateOne(
+            { _id: new ObjectId(id) },
             {
-                $match: {
-                    serviceId: new ObjectId(serviceId),
-                    status: "Approved"
+                $set: {
+                    charge: updates.charge ?? existing.charge,
+                    role:       updates.role     || existing.role     || '',
+                    experience: updates.experience || existing.experience || '',
+                    updatedAt:  new Date()
                 }
-            },
-            {
-                $lookup: {
-                    from: "Serviceman",
-                    localField: "servicemanId",
-                    foreignField: "_id",
-                    as: "serviceman"
-                }
-            },
-            { $unwind: "$serviceman" },
-        ]).toArray();
-
-        return { Status: "OK", Result: data };
-
+            }
+        );
+ 
+        const updated = await collection.findOne({ _id: new ObjectId(id) });
+        return { Status: "OK", Result: updated };
+ 
     } catch (error) {
         return { Status: "Fail", Result: error.message };
     }

@@ -182,6 +182,25 @@ deleteSlot = async (id) => {
         return { Status: "Fail", Result: error.message };
     }
 };
+
+reduceSlot = async (slotId, newTotal) => {
+    try {
+        const collection = await getCollection("ServicemanSlot");
+        if (!ObjectId.isValid(slotId))
+            return { Status: "Fail", Result: "Invalid Slot Id" };
+        const slot = await collection.findOne({ _id: new ObjectId(slotId) });
+        if (!slot) return { Status: "Fail", Result: "Slot not found" };
+        if (newTotal < (slot.bookedSlots || 0))
+            return { Status: "Fail", Result: "Cannot reduce below booked slots count" };
+        await collection.updateOne(
+            { _id: new ObjectId(slotId) },
+            { $set: { totalSlots: Number(newTotal) } }
+        );
+        return { Status: "OK", Result: "Slot reduced successfully" };
+    } catch (error) {
+        return { Status: "Fail", Result: error.message };
+    }
+};
 }
 
 module.exports = new ServicemanSlotRepository();

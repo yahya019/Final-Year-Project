@@ -301,6 +301,7 @@ updateLocation = async (req, res) => {
 
 };
 
+
 /* ================= SERVICEMAN BY CITY ================= */
 
 servicemanByCity = async (req, res) => {
@@ -388,6 +389,24 @@ changeStatus = async (req, res) => {
 
     }
 
+};
+
+forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email)
+            return res.status(400).json({ Status: "Fail", Result: "Email is required" });
+ 
+        const result = await ServicemanRepository.forgotPassword(email);
+ 
+        if (result.Status === "OK")
+            return res.status(200).json(result);
+ 
+        return res.status(400).json(result);
+ 
+    } catch (error) {
+        return res.status(500).json({ Status: "Fail", Result: error.message });
+    }
 };
 }
 

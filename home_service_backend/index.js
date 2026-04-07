@@ -4,6 +4,8 @@ const cors = require('cors');
 
 const app = express();
 app.use(express.json());
+const path = require('path');
+app.use('/Content', express.static(path.join(__dirname, 'Content')));
 app.use(cors({
     origin: '*', // React runs on 3001 (backend on 3000)
     credentials: true
@@ -79,6 +81,7 @@ app.get("/ServicemanService/List", ServicemanServiceController.list);
 app.get("/ServicemanService/ByServiceman/:servicemanId", ServicemanServiceController.servicemanServices);
 app.put("/ServicemanService/ChangeStatus", ServicemanServiceController.changeStatus);
 app.get("/ServicemanService/ByService/:serviceId", ServicemanServiceController.servicesByService);
+app.put("/ServicemanService/Update", ServicemanServiceController.updateService);
 
 
 /* ================= SERVICEMEN SLOT ROUTES ================= */
@@ -87,6 +90,7 @@ app.post("/ServicemanSlot/Create", ServicemanSlotController.createSlot);
 app.get("/ServicemanSlot/Get/:id", ServicemanSlotController.getSlotById);
 app.get("/ServicemanSlot/ByServiceman/:servicemanId", ServicemanSlotController.slotsByServiceman);
 app.delete("/ServicemanSlot/Delete/:id", ServicemanSlotController.deleteSlot);     
+app.put("/ServicemanSlot/Reduce", ServicemanSlotController.reduceSlot);
 
 /* ================= BOOKING ROUTES ================= */
 const BookingController = require("./Controllers/BookingController");
@@ -141,7 +145,81 @@ app.get("/Commission/List", CommissionController.commissionList);
 app.get("/Commission/Booking/:bookingId", CommissionController.getByBooking);
 app.put("/Commission/Settle", CommissionController.settleCommission);
 app.get("/Commission/Serviceman/:servicemanId", CommissionController.getByServiceman);
+app.put("/Commission/BulkSettle", CommissionController.bulkSettle);
 
+// Razorpay Payment Page
+const Razorpay = require('razorpay');
+
+const razorpay = new Razorpay({
+  key_id: 'rzp_test_SWWu7HqGefrC26',
+  key_secret: 'opKliFtO8MPEi4tJKYd6Fp3N',
+});
+
+app.get('/payment-page', async (req, res) => {
+  const { amount, name, email, contact, serviceName } = req.query;
+
+  try {
+    const order = await razorpay.orders.create({
+      amount: Number(amount) * 100,
+      currency: "INR"
+    });
+
+    res.send(`
+      <html>
+        <head>
+          <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+        </head>
+        <body>
+          <script>
+            const options = {
+              key: "${razorpay.key_id}",
+              amount: "${order.amount}",
+              currency: "INR",
+              name: "FixIt",
+              description: "${serviceName}",
+              order_id: "${order.id}",
+
+              handler: function (response) {
+
+                // 🔥 SEND DATA BACK TO APP
+                window.ReactNativeWebView.postMessage(JSON.stringify({
+                  type: "PAYMENT_SUCCESS",
+                  payment_id: response.razorpay_payment_id,
+                  order_id: response.razorpay_order_id
+                }));
+              },
+
+              prefill: {
+                name: "${name}",
+                email: "${email}",
+                contact: "${contact}"
+              },
+
+              theme: {
+                color: "#FF4D4D"
+              },
+
+              modal: {
+                ondismiss: function () {
+                  window.ReactNativeWebView.postMessage(JSON.stringify({
+                    type: "PAYMENT_CANCELLED"
+                  }));
+                }
+              }
+            };
+
+            const rzp = new Razorpay(options);
+            rzp.open();
+          </script>
+        </body>
+      </html>
+    `);
+
+  } catch (err) {
+    console.log("Razorpay Error:", err);
+    res.send("Payment Error");
+  }
+});
 
 app.listen(3000, '0.0.0.0', () => {
     console.log('Server running on port 3000');

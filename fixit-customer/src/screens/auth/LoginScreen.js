@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
-  StatusBar,
+  StatusBar, Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
-import { customerLogin } from '../../utils/api';
+const { sendMail, forgotPasswordTemplate } = require("../Services/SendMail");
+import { customerLogin, forgotPassword } from '../../utils/api';
 
 export default function LoginScreen({ navigation }) {
   const { login }      = useAuth();
@@ -16,6 +17,11 @@ export default function LoginScreen({ navigation }) {
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState('');
   const [focused,  setFocused]  = useState('');
+  const [showForgot, setShowForgot] = useState(false);
+  const [fpEmail,    setFpEmail]    = useState('');
+  const [fpLoading,  setFpLoading]  = useState(false);
+  const [fpMsg,      setFpMsg]      = useState('');
+  const [fpError,    setFpError]    = useState('');
 
   const handleLogin = async () => {
     setError('');
@@ -33,6 +39,25 @@ export default function LoginScreen({ navigation }) {
       setError(err?.response?.data?.Result || 'Connection failed. Check your network.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    setFpError(''); setFpMsg('');
+    if (!fpEmail.trim()) return setFpError('Email is required');
+    setFpLoading(true);
+    try {
+      const res = await forgotPassword({ email: fpEmail.trim().toLowerCase() });
+      if (res.data.Status === 'OK') {
+        setFpMsg('✅ New password sent to your email!');
+        setTimeout(() => { setShowForgot(false); setFpEmail(''); setFpMsg(''); }, 2500);
+      } else {
+        setFpError(res.data.Result);
+      }
+    } catch (err) {
+      setFpError(err?.response?.data?.Result || 'Failed. Check your network.');
+    } finally {
+      setFpLoading(false);
     }
   };
 
@@ -99,6 +124,10 @@ export default function LoginScreen({ navigation }) {
             {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>Sign In →</Text>}
           </TouchableOpacity>
 
+          <TouchableOpacity onPress={() => { setShowForgot(true); setFpError(''); setFpMsg(''); }} style={{ alignSelf: 'center', marginTop: 12 }}>
+            <Text style={s.forgotLink}>Forgot Password?</Text>
+          </TouchableOpacity>
+
           <View style={s.row}>
             <Text style={s.rowText}>Don't have an account? </Text>
             <TouchableOpacity onPress={() => navigation.navigate('Register')}>
@@ -109,6 +138,39 @@ export default function LoginScreen({ navigation }) {
 
         <Text style={s.footer}>By signing in, you agree to our Terms & Privacy Policy</Text>
       </ScrollView>
+
+      {/* Forgot Password Modal */}
+      <Modal visible={showForgot} transparent animationType="slide" onRequestClose={() => setShowForgot(false)}>
+        <View style={s.fpOverlay}>
+          <View style={s.fpSheet}>
+            <View style={s.fpHeader}>
+              <Text style={s.fpTitle}>🔑 Forgot Password</Text>
+              <TouchableOpacity onPress={() => setShowForgot(false)} style={s.fpCloseBtn}>
+                <Ionicons name="close" size={20} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            <Text style={s.fpSubtitle}>Enter your registered email address. We'll send you a new password.</Text>
+            {fpError ? <View style={s.errorBox}><Ionicons name="alert-circle" size={14} color="#EF4444" /><Text style={s.errorText}>{fpError}</Text></View> : null}
+            {fpMsg   ? <View style={s.successBox}><Ionicons name="checkmark-circle" size={14} color="#10B981" /><Text style={s.successText}>{fpMsg}</Text></View> : null}
+            <Text style={s.label}>EMAIL ADDRESS</Text>
+            <View style={s.inputWrap}>
+              <Ionicons name="mail-outline" size={18} color="#9CA3AF" style={{ marginRight: 10 }} />
+              <TextInput
+                style={[s.input, { flex: 1 }]}
+                placeholder="you@email.com"
+                placeholderTextColor="#9CA3AF"
+                value={fpEmail}
+                onChangeText={setFpEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+            <TouchableOpacity style={s.btn} onPress={handleForgotPassword} disabled={fpLoading} activeOpacity={0.85}>
+              {fpLoading ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>Send New Password</Text>}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -136,4 +198,13 @@ const s = StyleSheet.create({
   rowText:      { color: '#6B7280', fontSize: 13 },
   link:         { color: '#FF4D4D', fontSize: 13, fontWeight: '700' },
   footer:       { textAlign: 'center', fontSize: 11, color: '#9CA3AF', marginTop: 24 },
+  forgotLink:   { color: '#FF4D4D', fontSize: 13, fontWeight: '600' },
+  successBox:   { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#ECFDF5', borderWidth: 1, borderColor: '#A7F3D0', borderRadius: 10, padding: 12, marginBottom: 16 },
+  successText:  { color: '#10B981', fontSize: 13, flex: 1 },
+  fpOverlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  fpSheet:      { backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingBottom: 40 },
+  fpHeader:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  fpTitle:      { fontSize: 20, fontWeight: '900', color: '#1A1D23' },
+  fpCloseBtn:   { width: 36, height: 36, backgroundColor: '#F5F6FA', borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  fpSubtitle:   { fontSize: 13, color: '#6B7280', marginBottom: 20, lineHeight: 19 },
 });

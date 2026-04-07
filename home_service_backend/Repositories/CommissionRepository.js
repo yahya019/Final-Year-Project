@@ -170,6 +170,20 @@ class CommissionRepository {
         }
     };
 
+    bulkSettle = async (ids, settledAt) => {
+    try {
+        const collection = await getCollection("Commission");
+        const objectIds = ids.map(id => new ObjectId(id));
+        await collection.updateMany(
+            { _id: { $in: objectIds } },
+            { $set: { settlementStatus: "Settled", settledAt: new Date(settledAt) } }
+        );
+        return { Status: "OK", Result: "Commissions settled successfully" };
+    } catch (error) {
+        return { Status: "Fail", Result: error.message };
+    }
+};
+
 
     /* ================= COMMISSION BY BOOKING ================= */
 

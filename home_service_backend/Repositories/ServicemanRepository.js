@@ -1,6 +1,8 @@
 const { getCollection } = require("./dbConfig");
 const bcrypt = require("bcrypt");
 const { ObjectId } = require("mongodb");
+const { sendMail, forgotPasswordServicemanTemplate } = require("../Services/SendMail");
+
 
 class ServicemanRepository {
 
@@ -281,6 +283,70 @@ signIn = async (email, password) => {
         return { Status: "Fail", Result: error.message };
     }
 };
+
+forgotPassword = async (email) => {
+        try {
+            const collection = await getCollection("Serviceman");
+ 
+            const serviceman = await collection.findOne({ email: email.toLowerCase().trim() });
+ 
+            if (!serviceman)
+                return { Status: "Fail", Result: "No account found with this email address" };
+ 
+            // Generate new random password
+            const newPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-4).toUpperCase();
+ 
+            const hashedPassword = await bcrypt.hash(newPassword, 10);
+ 
+            await collection.updateOne(
+                { email: serviceman.email },
+                { $set: { password: hashedPassword } }
+            );
+ 
+            // Send email with new password
+            const template = forgotPasswordServicemanTemplate(
+                serviceman.fullName,
+                newPassword,
+                serviceman.email
+            );
+ 
+            await sendMail(
+                serviceman.email,
+                "FixIt - Password Reset",
+                template
+            );
+ 
+            return { Status: "OK", Result: "New password sent to your registered email" };
+ 
+        } catch (error) {
+            return { Status: "Fail", Result: error.message };
+        }
+    };
+ changePassword = async (_id, oldPassword, newPassword) => {
+        try {
+            const collection = await getCollection("Serviceman");
+ 
+            const serviceman = await collection.findOne({ _id: new ObjectId(_id) });
+            if (!serviceman)
+                return { Status: "Fail", Result: "Serviceman not found" };
+ 
+            const isMatch = await bcrypt.compare(oldPassword, serviceman.password);
+            if (!isMatch)
+                return { Status: "Fail", Result: "Old password incorrect" };
+ 
+            const hashedPassword = await bcrypt.hash(newPassword, 10);
+ 
+            await collection.updateOne(
+                { _id: new ObjectId(_id) },
+                { $set: { password: hashedPassword } }
+            );
+ 
+            return { Status: "OK", Result: "Password updated successfully" };
+        } catch (error) {
+            return { Status: "Fail", Result: error.message };
+        }
+    };
+
 }
 
 module.exports = new ServicemanRepository();

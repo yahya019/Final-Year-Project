@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  RefreshControl, ActivityIndicator, TextInput, StatusBar,
+  RefreshControl, ActivityIndicator, TextInput, StatusBar,Image
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { getCategories, getMyBookings } from '../../utils/api';
+
+const BASE_URL = 'http://10.137.238.126:3000';
 
 const toStr = (id) => {
   if (!id) return '';
@@ -24,6 +26,37 @@ const STATUS = {
 
 const CAT_ICONS  = ['🔧','⚡','❄️','🏠','🪑','🎨','🔌','🚿','🛁','🪟'];
 const CAT_COLORS = ['#FFD6D6','#FFE8A3','#B3D4FF','#B2EED8','#FFD6B3','#D9B3FF','#B3F0CC','#FFB3B3','#FFE8A3','#B3D4FF'];
+
+function CatImage({ cat, index, size = 32 }) {
+  const [imgError, setImgError] = useState(false);
+
+  if (cat?.imageUrl && !imgError) {
+    let uri = cat.imageUrl;
+
+    // convert relative → full URL
+    if (!uri.startsWith('http')) {
+      uri = `${BASE_URL}${uri}`;
+
+      // console.log(uri);
+    }
+
+    return (
+      <Image
+        source={{ uri }}
+        style={{ width: size, height: size, borderRadius: 8 }}
+        resizeMode="cover"
+        onError={() => setImgError(true)}
+      />
+    );
+  }
+
+  // fallback icon
+  return (
+    <Text style={{ fontSize: size }}>
+      {CAT_ICONS[index % CAT_ICONS.length]}
+    </Text>
+  );
+}
 
 export default function HomeScreen({ navigation }) {
   const { customer } = useAuth();
@@ -117,31 +150,23 @@ export default function HomeScreen({ navigation }) {
           ))}
         </View>
 
-        {/* Categories */}
-        <View style={s.section}>
-          <View style={s.sectionHeader}>
-            <Text style={s.sectionTitle}>Our Services</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Services')}>
-              <Text style={s.seeAll}>See All →</Text>
-            </TouchableOpacity>
-          </View>
-          {filteredCats.length === 0
-            ? <Text style={s.noResults}>No services found</Text>
-            : (
-              <View style={s.catGrid}>
-                {filteredCats.slice(0, 8).map((cat, i) => (
-                  <TouchableOpacity
-                    key={toStr(cat._id)}
-                    style={[s.catCard, { backgroundColor: CAT_COLORS[i % CAT_COLORS.length] }]}
-                    onPress={() => navigation.navigate('Services', { categoryId: toStr(cat._id), categoryName: cat.name })}
-                    activeOpacity={0.8}>
-                    <Text style={s.catIcon}>{CAT_ICONS[i % CAT_ICONS.length]}</Text>
-                    <Text style={s.catName} numberOfLines={2}>{cat.name}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-        </View>
+        {/* CATEGORIES */}
+                <View style={s.section}>
+                  <Text style={s.sectionTitle}>Our Services</Text>
+        
+                  <View style={s.catGrid}>
+                    {filteredCats.slice(0, 8).map((cat, i) => (
+                      <TouchableOpacity
+                        key={toStr(cat._id)}
+                        style={[s.catCard, { backgroundColor: CAT_COLORS[i % CAT_COLORS.length] }]}
+                        onPress={() => navigation.navigate('Services', { categoryId: toStr(cat._id), categoryName: cat.name })}
+                      >
+                        <CatImage cat={cat} index={i} />
+                        <Text style={s.catName}>{cat.name}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
 
         {/* Recent bookings */}
         <View style={s.section}>

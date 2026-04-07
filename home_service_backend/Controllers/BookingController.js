@@ -29,8 +29,8 @@ class BookingController {
             if (!serviceId)
                 return res.status(400).json({ Status: "Fail", Result: "Service Id required" });
 
-            if (!availableSlotId)
-                return res.status(400).json({ Status: "Fail", Result: "Slot Id required" });
+            // if (!availableSlotId)
+            //     return res.status(400).json({ Status: "Fail", Result: "Slot Id required" });
 
             if (!address)
                 return res.status(400).json({ Status: "Fail", Result: "Address required" });
