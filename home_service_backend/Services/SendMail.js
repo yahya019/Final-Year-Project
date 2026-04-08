@@ -159,15 +159,15 @@ const forgotPasswordTemplate = (Name, newPassword, toEmail) => {
         </div>
         `
     };
-    
-    
+
+
 };
 const forgotPasswordCustomerTemplate = (name, newPassword, toEmail) => {
-        return {
-            from: '"FixIt Support" <fixii.home.services@gmail.com>',
-            to: toEmail,
-            subject: "FixIt - Reset Your Password",
-            html: `
+    return {
+        from: '"FixIt Support" <fixii.home.services@gmail.com>',
+        to: toEmail,
+        subject: "FixIt - Reset Your Password",
+        html: `
         <div style="background:#f4f6f9;padding:30px;font-family:Arial;">
             <table align="center" width="600" style="background:#fff;border-radius:10px;overflow:hidden;">
                 
@@ -221,14 +221,14 @@ const forgotPasswordCustomerTemplate = (name, newPassword, toEmail) => {
             </table>
         </div>
         `
-        };
     };
-    const forgotPasswordServicemanTemplate = (name, newPassword, toEmail) => {
-        return {
-            from: '"FixIt Partner Support" <fixii.home.services@gmail.com>',
-            to: toEmail,
-            subject: "FixIt Partner - Password Reset",
-            html: `
+};
+const forgotPasswordServicemanTemplate = (name, newPassword, toEmail) => {
+    return {
+        from: '"FixIt Partner Support" <fixii.home.services@gmail.com>',
+        to: toEmail,
+        subject: "FixIt Partner - Password Reset",
+        html: `
         <div style="background:#f4f6f9;padding:30px;font-family:Arial;">
             <table align="center" width="600" style="background:#fff;border-radius:10px;overflow:hidden;">
                 
@@ -282,8 +282,8 @@ const forgotPasswordCustomerTemplate = (name, newPassword, toEmail) => {
             </table>
         </div>
         `
-        };
     };
+};
 
 
-module.exports = { sendMail, createAccountTemplate, forgotPasswordTemplate , forgotPasswordCustomerTemplate, forgotPasswordServicemanTemplate };
+module.exports = { sendMail, createAccountTemplate, forgotPasswordTemplate, forgotPasswordCustomerTemplate, forgotPasswordServicemanTemplate };

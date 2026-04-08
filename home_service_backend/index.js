@@ -181,7 +181,7 @@ app.get('/payment-page', async (req, res) => {
 
               handler: function (response) {
 
-                // 🔥 SEND DATA BACK TO APP
+                // SEND DATA BACK TO APP
                 window.ReactNativeWebView.postMessage(JSON.stringify({
                   type: "PAYMENT_SUCCESS",
                   payment_id: response.razorpay_payment_id,

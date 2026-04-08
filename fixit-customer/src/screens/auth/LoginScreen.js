@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
-const { sendMail, forgotPasswordTemplate } = require("../Services/SendMail");
+
 import { customerLogin, forgotPassword } from '../../utils/api';
 
 export default function LoginScreen({ navigation }) {

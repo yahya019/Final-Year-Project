@@ -14,7 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 
 
-const BASE_URL = 'http://10.137.238.126:3000';
+const BASE_URL = 'http://10.241.161.126:3000';
 
 const toStr = (id) => {
   if (!id) return '';

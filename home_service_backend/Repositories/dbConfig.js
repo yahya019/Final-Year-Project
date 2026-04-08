@@ -1,6 +1,6 @@
 const { MongoClient } = require('mongodb');
 
-const url = 'mongodb://localhost:27017';
+const url = 'mongodb+srv://admin:Fixit@2026@fixit.keccs7s.mongodb.net/';
 const client = new MongoClient(url);
 
 async function getCollection(collectionName) {

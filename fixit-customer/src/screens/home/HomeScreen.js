@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { getCategories, getMyBookings } from '../../utils/api';
 
-const BASE_URL = 'http://10.137.238.126:3000';
+const BASE_URL = 'http://10.241.161.126:3000';
 
 const toStr = (id) => {
   if (!id) return '';
